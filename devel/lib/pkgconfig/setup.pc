@@ -1,8 +1,0 @@
-prefix=/home/skrlj/Desktop/TeamEpsilon/devel
-
-Name: setup
-Description: Description of setup
-Version: 0.0.0
-Cflags: 
-Libs: -L${prefix}/lib 
-Requires: 
