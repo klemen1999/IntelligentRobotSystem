@@ -1,0 +1,2 @@
+face_detection:navigation:setup
+-DCATKIN_DEVEL_PREFIX=/home/skrlj/Desktop/TeamEpsilon/devel -DCMAKE_INSTALL_PREFIX=/home/skrlj/Desktop/TeamEpsilon/install -G Unix Makefiles
