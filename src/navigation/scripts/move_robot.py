@@ -3,9 +3,14 @@
 import rospy
 import os
 import actionlib
+import tf2_ros
+from math import pi
+from nav_msgs.msg import Odometry
+from tf.transformations import *
+from tf import LookupException, ConnectivityException
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from actionlib_msgs.msg import GoalStatusArray
-from geometry_msgs.msg import PointStamped, Vector3, Pose
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist
 
 
 def readPoints():
@@ -31,6 +36,8 @@ class move_controller():
 	def __init__(self, points):
 		rospy.init_node("move_robot_node")
 		self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
+		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_rotation)
+		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		self.client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		self.points = points
 		self.facePose_sub = rospy.Subscriber("face_pose", Pose, self.new_detection)
@@ -73,12 +80,71 @@ class move_controller():
 		# TODO: kaj narediti v tem primeru
 		self.slowDown = True
 
+	def rotate(self, speed, angle, clockwise):
+		speed_rad = self.deg_to_radian(speed)
+		angular_speed = self.get_angular_speed(speed_rad, clockwise)
+		angle = self.deg_to_radian(angle)
+		threshold = 0.05
+		rate = rospy.Rate(100)
+
+		vel_msg = self.init_vel_msg_for_rotation()
+	
+		current_rotation = self.current_rotation
+		prev_rotation = current_rotation
+		rotated = 0
+
+		while not self.closeTo(rotated, angle, threshold):
+
+			vel_msg.angular.z = self.adjust_the_speed(angular_speed)
+			self.velocity_pub.publish(vel_msg)
+
+			prev_rotation = current_rotation
+			current_rotation = self.current_rotation
+
+			rotated += abs(abs(current_rotation) - abs(prev_rotation))
+			rate.sleep()
+
+		vel_msg.angular.z = 0
+		self.velocity_pub.publish(vel_msg)
+
+	def closeTo(self, value, reference, threshold):
+		return (value <= (reference + threshold) and value >= reference) \
+			or (value >= (reference - threshold) and value <= reference)
+
+	def get_rotation(self, msg):
+		orientation_q = msg.pose.pose.orientation
+		orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+		(roll, pitch, yaw) = euler_from_quaternion (orientation_list)
+		self.current_rotation = yaw
+
+	def get_angular_speed(self, angular_speed, clockwise):
+		if(clockwise):
+			return -abs(angular_speed)
+		else:
+			return abs(angular_speed)
+
+	def adjust_the_speed(self, angular_speed):
+		if self.slowDown:
+			return angular_speed * 0.1
+		else:
+			return angular_speed
+
+	def deg_to_radian(self, deg):
+		return deg*2*pi/360
+
+	def init_vel_msg_for_rotation(self):		
+		vel_msg = Twist()
+		vel_msg.linear.x=0
+		vel_msg.linear.y=0
+		vel_msg.linear.z=0
+		vel_msg.angular.x = 0
+		vel_msg.angular.y = 0
+		return vel_msg
 
 def main():
 	points = readPoints()
 	mover = move_controller(points)
 	mover.move_to_points()
-
 
 if __name__ == "__main__":
 	main()
