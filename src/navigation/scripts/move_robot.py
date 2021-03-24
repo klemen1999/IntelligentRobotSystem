@@ -47,7 +47,7 @@ class move_controller():
 
 		self.slowDown = False
 		self.slowDownStart = None
-		self.slowDownDur = rospy.Duration(5)
+		self.slowDownDur = rospy.Duration(3)
 
 	def print_status(self, data):
 		if len(data.status_list) < 1:
@@ -66,7 +66,8 @@ class move_controller():
 		for i in range(len(self.points)):
 			x, y = self.points[i]
 			self.move(x, y, client)
-			self.rotate(50, 360, True)
+			self.rotate(30, 360, True)
+
 
 		rospy.loginfo("End")
 
@@ -135,7 +136,7 @@ class move_controller():
 
 	def adjust_the_speed(self, angular_speed):
 		if self.slowDown:
-			return angular_speed * 0.25
+			return angular_speed * 0
 		else:
 			return angular_speed
 
