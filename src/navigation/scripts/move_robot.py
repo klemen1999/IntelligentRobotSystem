@@ -11,6 +11,7 @@ from tf import LookupException, ConnectivityException
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist
+from visualization_msgs.msg import Marker, MarkerArray
 
 
 def readPoints():
@@ -37,7 +38,7 @@ class move_controller():
 		rospy.init_node("move_robot_node")
 		if debugStauts:
 			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
-
+		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.marker_recieved)
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_rotation)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		self.client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
@@ -47,7 +48,6 @@ class move_controller():
 		self.slowDown = False
 		self.slowDownStart = None
 		self.slowDownDur = rospy.Duration(5)
-
 
 	def print_status(self, data):
 		if len(data.status_list) < 1:
@@ -150,6 +150,9 @@ class move_controller():
 		vel_msg.angular.x = 0
 		vel_msg.angular.y = 0
 		return vel_msg
+
+	def marker_recieved(self, msg):
+		print(msg)
 
 
 def main():
