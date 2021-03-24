@@ -5,19 +5,19 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose
 from std_msgs.msg import ColorRGBA
 
+
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('face_markers_node')
         self.subscriber = rospy.Subscriber("face_pose", Pose, self.new_detection)
-        self.buffer = [] # buffer to catch poses from face_pose topic
+        self.buffer = []  # buffer to catch poses from face_pose topic
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.faces = []
         self.marker_array = MarkerArray()
         self.marker_num = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
-
 
     def new_detection(self, pose):
         print("got pose")
@@ -26,6 +26,7 @@ class marker_organizer():
     def check_faces(self):
         for pose in self.buffer:
             noMatch = 0
+            print("POSE",pose.position)
             for i, (face, occurances) in enumerate(self.faces):
                 numMatches = 0
                 if face.position.x - self.distThresh <= pose.position.x \
@@ -38,7 +39,7 @@ class marker_organizer():
                         <= face.position.z + self.distThresh:
                     numMatches += 1
                 # dodaj orientation
-
+                #print("MATCH",numMatches)
                 if numMatches == 3:
                     face.position.x = (face.position.x * occurances
                                        + pose.position.x) / (occurances + 1)
@@ -49,6 +50,7 @@ class marker_organizer():
                     occurances += 1
                     self.faces[i] = (face, occurances)
                     if occurances == self.occuranceThresh:
+                        print("MARKER:", face.position)
                         self.publish_marker(face)
                 else:
                     noMatch += 1
@@ -57,7 +59,6 @@ class marker_organizer():
                 self.faces.append((pose, 1))
 
         self.buffer = []
-
 
     def publish_marker(self, pose):
         self.marker_num += 1
@@ -78,8 +79,8 @@ class marker_organizer():
 
 
 def main():
-    marker_org = marker_organizer(3, 0.25)
-    rate = rospy.Rate(1)
+    marker_org = marker_organizer(3, 0.5)
+    rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_faces()
         rate.sleep()
