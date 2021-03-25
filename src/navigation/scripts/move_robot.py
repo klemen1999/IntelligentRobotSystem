@@ -85,7 +85,8 @@ class move_controller():
 		if not self.slowDown:
 			print("New possible detection")
 			self.slowDownStart = rospy.Time.now()
-			self.slowDown = True
+			self.slowDown = False
+
 
 	def rotate(self, speed, angle, clockwise):
 		speed_rad = self.deg_to_radian(speed)
