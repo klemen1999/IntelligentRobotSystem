@@ -70,6 +70,7 @@ class face_localizer_dnn:
         face_y = self.dims[0] / 2 - (y1 + y2) / 2.
 
         angle_to_target = np.arctan2(face_x, k_f)
+        print(angle_to_target)
 
         # Get the angles in the base_link relative coordinate system
 

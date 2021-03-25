@@ -4,6 +4,7 @@ import rospy
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose
 from std_msgs.msg import ColorRGBA
+from face_detection.msg import ImageStatus
 
 
 class marker_organizer():
@@ -13,6 +14,7 @@ class marker_organizer():
         self.subscriber = rospy.Subscriber("face_pose", Pose, self.new_detection)
         self.buffer = []  # buffer to catch poses from face_pose topic
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
+        self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
         self.faces = []
         self.marker_array = MarkerArray()
         self.marker_num = 1
@@ -56,6 +58,9 @@ class marker_organizer():
                     noMatch += 1
 
             if noMatch == len(self.faces):
+                status_message = ImageStatus()
+                status_message.status = "NEW_FACE"
+                self.img_status_pub.publish(status_message)
                 self.faces.append((pose, 1))
 
         self.buffer = []

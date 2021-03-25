@@ -14,6 +14,16 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package( OpenCV REQUIRED )
 
+add_message_files(
+  FILES
+  ImageStatus.msg
+ )
+
+generate_messages(
+	DEPENDENCIES
+	std_msgs
+ )
+
 catkin_package()
 
 #include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
