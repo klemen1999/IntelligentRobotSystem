@@ -167,6 +167,7 @@ class face_localizer_dnn:
         for i in range(0, face_detections.shape[2]):
             confidence = face_detections[0, 0, i, 2]
             if confidence > 0.5:
+
                 box = face_detections[0, 0, i, 3:7] * np.array([w, h,
                                                                 w, h])
                 box = box.astype('int')
