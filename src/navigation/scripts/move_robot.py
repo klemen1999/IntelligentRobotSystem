@@ -14,27 +14,33 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
 
+
+
 def readPoints():
 	points = []
 	path = os.path.realpath(__file__)
 	pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates.txt")
 	f = open(pointsPath, "r")
-	for line in f:
-		tempArr = line.split(",")
-		coords = []
-		temp = tempArr[0].split(":")
-		coords.append(float(temp[1]))
-		temp = tempArr[1].split(":")
-		temp = temp[1].split(")")
-		coords.append(float(temp[0]))
-		points.append((coords[0], coords[1]))
-
+	lines = f.readlines()
+	for i in range(0, len(lines), 9):
+		newPose = Pose()
+		newPose.position.x = float(lines[i + 1].split(":")[1])
+		newPose.position.y = float(lines[i + 2].split(":")[1])
+		newPose.position.z = float(lines[i + 3].split(":")[1])
+		newPose.orientation.x = float(lines[i + 4].split(":")[1])
+		newPose.orientation.y = float(lines[i + 5].split(":")[1])
+		newPose.orientation.z = float(lines[i + 6].split(":")[1])
+		newPose.orientation.w = float(lines[i + 7].split(":")[1])
+		temp = lines[i + 8].split(" ")
+		rotDeg = float(temp[0])
+		clockwise = True if int(temp[1]) else False
+		points.append((newPose, rotDeg, clockwise))
 	return points
 
 
 class move_controller():
 
-	def __init__(self, points,debugStauts):
+	def __init__(self, points, debugStauts):
 		rospy.init_node("move_robot_node")
 		if debugStauts:
 			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
@@ -67,36 +73,33 @@ class move_controller():
 			rospy.logwarn(output)
 
 	def move_to_points(self):
-
-		for i in range(len(self.points)):
-			x, y = self.points[i]
-			self.move(x, y, 0, 1)
-			self.rotate(30, 360, True)
-			#try to move to a face (if you found new/haven't visited already)
+		for point in self.points:
+			pose, rotDeg, clockwise = point
+			self.move(pose)
+			self.rotate(30, rotDeg, clockwise)
+			# try to move to a face (if you found new/haven't visited already)
 			try:
-				if self.face_marker_array != None and self.face_marker_array.markers != None and len(self.face_marker_array.markers) > 0:
+				if self.face_marker_array != None and self.face_marker_array.markers != None and len(
+						self.face_marker_array.markers) > 0:
 					self.move_to_faces()
 			except Exception as e:
 				print(e)
-			
+
 		rospy.loginfo("End")
 
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
-			#check if you already visited the marker
+			# check if you already visited the marker
 			if marker.id in self.alreadyVisitedMarkers:
 				continue
-			move_to = self.approach_transform(self.current_position, marker.pose)
-			self.move(move_to.position.x, move_to.position.y, move_to.orientation.z, move_to.orientation.w)
-			self.alreadyVisitedMarkers.append(marker.id)	#add marker id you already visited
+			pose = self.approach_transform(self.current_position, marker.pose)
+			self.move(pose)
+			self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 
-	def move(self, x, y, z, w):
+	def move(self, pose):
 		goal = MoveBaseGoal()
 		goal.target_pose.header.frame_id = 'map'
-		goal.target_pose.pose.position.x = x
-		goal.target_pose.pose.position.y = y
-		goal.target_pose.pose.orientation.w = w
-		goal.target_pose.pose.orientation.z = z
+		goal.target_pose.pose = pose
 
 		self.client.send_goal(goal)
 		self.client.wait_for_result()
@@ -105,7 +108,7 @@ class move_controller():
 		print("New possible detection")
 
 	def new_face_detection(self, msg):
-		if(msg.status == "NEW_FACE"):
+		if (msg.status == "NEW_FACE"):
 			print("New face")
 			self.slowDown = True
 			self.slowDownStart = rospy.Time.now()
@@ -123,7 +126,6 @@ class move_controller():
 		rotated = 0
 
 		while not self.closeTo(rotated, angle, threshold):
-
 			vel_msg.angular.z = self.adjust_the_speed(angular_speed)
 			self.velocity_pub.publish(vel_msg)
 
@@ -160,8 +162,8 @@ class move_controller():
 			return angular_speed
 
 	def not_timed_out(self):
-		if(self.slowDownStart is not None and \
-			rospy.Time.now() - self.slowDownStart > self.slowDownDur):
+		if (self.slowDownStart is not None and \
+				rospy.Time.now() - self.slowDownStart > self.slowDownDur):
 			print("timed out")
 			self.slowDown = False
 			self.slowDownStart = None
@@ -195,16 +197,15 @@ class move_controller():
 		v = Vector3(dx, dy, 0)
 		v_len = math.sqrt(math.pow(v.x, 2) + math.pow(v.y, 2))
 		v_new_len = v_len - self.distance_to_face
-		v_mul = v_new_len/v_len
+		v_mul = v_new_len / v_len
 
 		v = Vector3(v.x * v_mul, v.y * v_mul, 0)
 		v = Vector3(v.x + curr_pose.position.x, v.y + curr_pose.position.y, 0)
 
-
 		rad = math.atan2(dy, dx)
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
-		
+
 		pose = Pose(v, q)
 
 		return pose
@@ -224,7 +225,9 @@ def main():
 	points = readPoints()
 	mover = move_controller(points, False)
 	mover.move_to_points()
-	#mover.move_to_faces()
+
+
+# mover.move_to_faces()
 
 
 if __name__ == "__main__":
