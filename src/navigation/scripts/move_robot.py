@@ -55,6 +55,8 @@ class move_controller():
 		self.slowDownDur = rospy.Duration(3)
 		self.distance_to_face = 0.45
 
+		self.alreadyVisitedMarkers = []
+
 	def print_status(self, data):
 		if len(data.status_list) < 1:
 			return
@@ -70,14 +72,23 @@ class move_controller():
 			x, y = self.points[i]
 			self.move(x, y, 0, 1)
 			self.rotate(30, 360, True)
-
-
+			#try to move to a face (if you found new/haven't visited already)
+			try:
+				if self.face_marker_array != None and self.face_marker_array.markers != None and len(self.face_marker_array.markers) > 0:
+					self.move_to_faces()
+			except Exception as e:
+				print(e)
+			
 		rospy.loginfo("End")
 
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
+			#check if you already visited the marker
+			if marker.id in self.alreadyVisitedMarkers:
+				continue
 			move_to = self.approach_transform(self.current_position, marker.pose)
 			self.move(move_to.position.x, move_to.position.y, move_to.orientation.z, move_to.orientation.w)
+			self.alreadyVisitedMarkers.append(marker.id)	#add marker id you already visited
 
 	def move(self, x, y, z, w):
 		goal = MoveBaseGoal()
@@ -213,7 +224,7 @@ def main():
 	points = readPoints()
 	mover = move_controller(points, False)
 	mover.move_to_points()
-	mover.move_to_faces()
+	#mover.move_to_faces()
 
 
 if __name__ == "__main__":
