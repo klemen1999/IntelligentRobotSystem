@@ -24,6 +24,7 @@ def readPoints():
 	points = []
 	path = os.path.realpath(__file__)
 	pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates.txt")
+	#pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates2.txt")
 	f = open(pointsPath, "r")
 	lines = f.readlines()
 	for i in range(0, len(lines), 9):
