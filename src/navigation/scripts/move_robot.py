@@ -13,7 +13,7 @@ from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
-
+from std_msgs.msg import ColorRGBA
 
 
 def readPoints():
@@ -63,6 +63,9 @@ class move_controller():
 
 		self.alreadyVisitedMarkers = []
 
+		self.goal_publisher = rospy.Publisher('goal_markers', Marker, queue_size=1)
+		self.marker_num = 10000
+
 	def print_status(self, data):
 		if len(data.status_list) < 1:
 			return
@@ -75,8 +78,11 @@ class move_controller():
 	def move_to_points(self):
 		for point in self.points:
 			pose, rotDeg, clockwise = point
+			marker = self.make_marker(pose)
+			self.goal_publisher.publish(marker)
 			self.move(pose)
 			self.rotate(30, rotDeg, clockwise)
+			
 			# try to move to a face (if you found new/haven't visited already)
 			try:
 				if self.face_marker_array != None and self.face_marker_array.markers != None and len(
@@ -93,6 +99,8 @@ class move_controller():
 			if marker.id in self.alreadyVisitedMarkers:
 				continue
 			pose = self.approach_transform(self.current_position, marker.pose)
+			#marker = self.make_marker(pose)
+			#self.goal_publisher.publish(marker)
 			self.move(pose)
 			self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 
@@ -220,6 +228,20 @@ class move_controller():
 		self.client.send_goal(goal)
 		self.client.wait_for_result()
 
+	def make_marker(self, pose):
+		marker = Marker()
+		marker.header.stamp = rospy.Time(0)
+		marker.header.frame_id = 'map'
+		marker.pose = pose
+		marker.type = Marker.CYLINDER
+		marker.action = Marker.ADD
+		marker.frame_locked = False
+		marker.lifetime = rospy.Duration.from_sec(30)
+		marker.id = self.marker_num
+		marker.scale = Vector3(0.1, 0.1, 0.1)
+		marker.color = ColorRGBA(0.73, 0.25, 0.35, 1)
+		self.marker_num += 1
+		return marker
 
 def main():
 	points = readPoints()
