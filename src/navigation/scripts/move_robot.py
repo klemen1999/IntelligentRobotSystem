@@ -4,6 +4,7 @@ import rospy
 import os
 import actionlib
 import tf2_ros
+import json
 from math import pi
 from nav_msgs.msg import Odometry
 from tf.transformations import *
@@ -31,15 +32,24 @@ def readPoints():
 
 	return points
 
+def read_points_json():
+	points = []
+	path = os.path.realpath(__file__)
+	pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates_json.json")
+	with open(pointsPath, 'r') as f:
+		lines = f.read()
+		json_array = json.load(lines)
+		for json_obj in json_array:
+			self.points.append(Point.init_from_json(json_obj))
 
 class move_controller():
 
 	def __init__(self, points,debugStauts):
 		rospy.init_node("move_robot_node")
-		if debugStauts:
-			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
+
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.marker_recieved)
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_rotation)
+		self.goal_status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, goal_status_callback)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		self.client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		self.points = points
@@ -50,6 +60,7 @@ class move_controller():
 		rospy.loginfo("Waiting for move base server")
 		self.client.wait_for_server()
 
+		self.moving = False
 		self.slowDown = False
 		self.slowDownStart = None
 		self.slowDownDur = rospy.Duration(3)
@@ -57,7 +68,7 @@ class move_controller():
 
 		self.alreadyVisitedMarkers = []
 
-	def print_status(self, data):
+	def goal_status_callback(self, data):
 		if len(data.status_list) < 1:
 			return
 		output = "Status: " + str(data.status_list[-1].status) + " Text: " + str(data.status_list[-1].text)
@@ -68,7 +79,7 @@ class move_controller():
 
 	def move_to_points(self):
 
-		for i in range(len(self.points)):
+		while not self.points.empty():
 			x, y = self.points[i]
 			self.move(x, y, 0, 1)
 			self.rotate(30, 360, True)
@@ -84,11 +95,10 @@ class move_controller():
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
 			#check if you already visited the marker
-			if marker.id in self.alreadyVisitedMarkers:
-				continue
-			move_to = self.approach_transform(self.current_position, marker.pose)
-			self.move(move_to.position.x, move_to.position.y, move_to.orientation.z, move_to.orientation.w)
-			self.alreadyVisitedMarkers.append(marker.id)	#add marker id you already visited
+			if marker.id not in self.alreadyVisitedMarkers:
+				move_to = self.approach_transform(self.current_position, marker.pose)
+				self.move(move_to.position.x, move_to.position.y, move_to.orientation.z, move_to.orientation.w)
+				self.alreadyVisitedMarkers.append(marker.id)	#add marker id you already visited
 
 	def move(self, x, y, z, w):
 		goal = MoveBaseGoal()
@@ -98,8 +108,10 @@ class move_controller():
 		goal.target_pose.pose.orientation.w = w
 		goal.target_pose.pose.orientation.z = z
 
+		self.moving = True
 		self.client.send_goal(goal)
 		self.client.wait_for_result()
+		self.move = False
 
 	def new_detection(self, pose):
 		print("New possible detection")
@@ -186,8 +198,14 @@ class move_controller():
 		self.slowDown = False
 		self.face_marker_array = msg
 		f_pose = self.approach_transform(self.current_position, msg.markers[0].pose)
+		if self.moving:
+			self.client.cancel_goal()
+			self.points.appe
 		print(f_pose)
 		print("Marker added ", msg)
+
+	def add_face_goal(self, f_goal):
+
 
 	def approach_transform(self, curr_pose, target_pose):
 		dx = target_pose.position.x - curr_pose.position.x
@@ -220,10 +238,28 @@ class move_controller():
 		self.client.wait_for_result()
 
 
+class Point:
+
+	def __init(self, x, y, z, w):
+		self.x = x
+		self.y = y
+		self.z = z
+		self.w = w
+
+	@staticmethod
+	def init_from_json(self, json_obj):
+		self.x = json_obj["x"]
+		self.y = json_obj["y"]
+		if 'z' in json_obj:
+			self.z = json_obj["z"]
+		if 'w' in json_obj:
+			self.w = json_obj["w"]
+
+
 def main():
 	points = readPoints()
 	mover = move_controller(points, False)
-	mover.move_to_points()
+	mover.move(-1.5000, 0.210001, 1, 1)
 	#mover.move_to_faces()
 
 
