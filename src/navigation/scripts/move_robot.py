@@ -13,6 +13,9 @@ from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
+from sound_play.msg import SoundRequest
+from sound_play.libsoundplay import SoundClient
+from sound.msg import RobotSpeakRequest
 
 
 
@@ -51,6 +54,8 @@ class move_controller():
 		self.points = points
 		self.facePose_sub = rospy.Subscriber("face_pose", Pose, self.new_detection)
 		self.face_status_sub = rospy.Subscriber("face_status", ImageStatus, self.new_face_detection)
+		self.sound_client = SoundClient()
+		self.sound_client.stopAll()
 
 		self.client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		rospy.loginfo("Waiting for move base server")
@@ -94,6 +99,8 @@ class move_controller():
 				continue
 			pose = self.approach_transform(self.current_position, marker.pose)
 			self.move(pose)
+			self.sound_client.say("Hello face")
+			rospy.sleep(2)	
 			self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 
 	def move(self, pose):
