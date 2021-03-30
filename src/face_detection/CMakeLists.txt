@@ -35,6 +35,7 @@ catkin_install_python(PROGRAMS
     scripts/face_localizer_dlib 
     scripts/face_localizer_dnn 
     scripts/face_markers.py
+    scripts/face_markers2.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
 
