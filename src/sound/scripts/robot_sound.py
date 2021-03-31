@@ -12,7 +12,7 @@ class Sound_Controller:
         rospy.init_node("robot_say_node", anonymous = False)
         self.sound_client = SoundClient()
         self.sound_client.stopAll()
-        self.sub = rospy.Subscriber("/robot_say", RobotSpeakRequest, self.robot_say_listener)
+        self.sub = rospy.Subscriber("robot_say", RobotSpeakRequest, self.robot_say_listener)
         rospy.spin()
 
     def robot_say_listener(self, msg):

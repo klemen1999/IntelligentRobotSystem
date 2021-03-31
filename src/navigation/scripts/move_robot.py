@@ -14,8 +14,6 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
 from std_msgs.msg import ColorRGBA
-from sound_play.msg import SoundRequest
-from sound_play.libsoundplay import SoundClient
 from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 
@@ -55,8 +53,7 @@ class move_controller():
 		self.points = points
 		self.facePose_sub = rospy.Subscriber("face_pose", Pose, self.new_detection)
 		self.face_status_sub = rospy.Subscriber("face_status", ImageStatus, self.new_face_detection)
-		self.sound_client = SoundClient()
-		self.sound_client.stopAll()
+		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
 
 		self.client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		rospy.loginfo("Waiting for move base server")
@@ -105,6 +102,10 @@ class move_controller():
 			except Exception as e:
 				print(e)
 
+			if len(self.alreadyVisitedMarkers) == 3:
+				print("Found 3 faces. I'm gonna stop now.")
+				return
+
 		rospy.loginfo("End")
 
 	def move_to_faces(self):
@@ -116,7 +117,9 @@ class move_controller():
 			markerToFace = self.make_marker(pose)
 			self.goal_publisher.publish(markerToFace)
 			self.move(pose)
-			self.sound_client.say("Hello")
+			soundMsg = RobotSpeakRequest()
+			soundMsg.message = "Hello"
+			self.sound_pub.publish(soundMsg)
 			rospy.sleep(1)
 			self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 
