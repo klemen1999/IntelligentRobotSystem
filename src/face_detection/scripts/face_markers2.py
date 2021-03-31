@@ -98,8 +98,7 @@ class marker_organizer():
                             self.faces[i] = (face, occurances, mid, side)
                             print("middle, same side")
                             if occurances == self.occuranceThresh:
-                                if self.check_clusters(i):
-                                    self.update_markers()
+                                self.update_markers()
                         else:   #face at mid, other side
                             noMatch += 1
                             print("middle, but other side, add new face")
@@ -111,8 +110,7 @@ class marker_organizer():
                         occurances += 1
                         self.faces[i] = (face, occurances, mid, side)
                         if occurances == self.occuranceThresh:
-                            if self.check_clusters(i):
-                                self.update_markers()
+                            self.update_markers()
                 else:   #no match x,y -> new face
                     noMatch += 1
                     print("no match")
@@ -122,34 +120,7 @@ class marker_organizer():
                 status_message.status = "NEW_FACE"
                 self.img_status_pub.publish(status_message)
                 self.faces.append((pose, 1, check_midle, check_side))
-        if len(self.faces) > 5:
-            rospy.logwarn("NOVO!!!")
-            for a in self.faces:
-                print(a[0], a[1])
         self.buffer = []
-
-    def check_clusters(self, ix):
-        (pose, occ, mi, si) = self.faces[ix]
-        for i, (face, occurances, mid, side) in enumerate(self.faces):
-            if i == ix:
-                continue
-            numMatches = 0
-            if face.position.x - self.distThresh <= pose.position.x \
-                    <= face.position.x + self.distThresh:
-                numMatches += 1
-            if face.position.y - self.distThresh <= pose.position.y \
-                    <= face.position.y + self.distThresh:
-                numMatches += 1
-
-            if numMatches == 2:
-                face.position.x = (face.position.x * occurances
-                                   + pose.position.x * occ) / (occurances + occ)
-                face.position.y = (face.position.y * occurances
-                                   + pose.position.y * occ) / (occurances + occ)
-                occurances += occ
-                self.faces[i] = (face, occurances, mid, side)
-                return False
-        return True
 
     def update_markers(self):
         self.marker_array.markers = []
@@ -177,9 +148,7 @@ class marker_organizer():
 
 
 def main():
-    #marker_org = marker_organizer(5, 0.5)
-    #TODO switch back
-    marker_org = marker_organizer(5, 1.6)
+    marker_org = marker_organizer(5, 0.5)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_faces()
