@@ -6,6 +6,8 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose
 from std_msgs.msg import ColorRGBA
 from face_detection.msg import ImageStatus
 from nav_msgs.msg import Odometry
+from navigation.msg import CalibrationMsg
+
 
 class marker_organizer():
 
@@ -22,10 +24,17 @@ class marker_organizer():
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
         self.robot_position = []
+        self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
+        self.start = False
+
+    def calibration_callback(self, msg):
+        if msg.calibrationFinished:
+            self.start = True
 
     def new_detection(self, pose):
-        print("got pose")
-        self.buffer.append(pose)
+        if self.start:
+            self.update_markers()
+            self.buffer.append(pose)
 
     def img_in_the_middle(self, x, y):
         first_x1 = 0.2
@@ -39,39 +48,38 @@ class marker_organizer():
         second_y2 = 0
 
         if first_x1 <= x <= first_x2 and first_y1 <= y <= first_y2:
-            #print("img at the first middle wall!")
-            return 0    #img is on the first middle wall
+            # print("img at the first middle wall!")
+            return 0  # img is on the first middle wall
         elif second_x1 <= x <= second_x2 and second_y1 <= y <= second_y2:
-            #print("img at the second middle wall!")
-            return 1    #img is on the second mid wall
-        return -1   #img is not in the middle
+            # print("img at the second middle wall!")
+            return 1  # img is on the second mid wall
+        return -1  # img is not in the middle
 
-    def get_robot_position(self, msg):  #get robots x,y position
+    def get_robot_position(self, msg):  # get robots x,y position
         p = msg.pose.pose.position
         x = p.x
         y = p.y
-        self.robot_position = [x,y]
-    
+        self.robot_position = [x, y]
+
     def check_side(self, wall, x_robot, y_robot):
-        if wall == 0:   #first middle wall
-            if x_robot > 0.4:   #check on which side it is
+        if wall == 0:  # first middle wall
+            if x_robot > 0.4:  # check on which side it is
                 return 0
             else:
                 return 1
-        elif wall == 1: #second mid wall
-            if y_robot < -0.4:  #check on which side the robot is
+        elif wall == 1:  # second mid wall
+            if y_robot < -0.4:  # check on which side the robot is
                 return 0
             else:
                 return 1
-        return -1   #img is not in the middle walls
+        return -1  # img is not in the middle walls
 
     def check_faces(self):
-
         for pose in self.buffer:
             noMatch = 0
 
             check_midle = self.img_in_the_middle(pose.position.x, pose.position.y)
-            
+
             check_side = self.check_side(check_midle, self.robot_position[0], self.robot_position[1])
 
             for i, (face, occurances, mid, side) in enumerate(self.faces):
@@ -83,35 +91,32 @@ class marker_organizer():
                         <= face.position.y + self.distThresh:
                     numMatches += 1
                 # zna bit problem če so dve sliki na isti steni ampak na drugi strani
-                
+
                 if numMatches == 2:
-                    #face matches x,y
+                    # face matches x,y
                     if check_midle > -1:
-                        #face is at the middle walls
-                        if check_side == side:  #face at mid, same side
+                        # face is at the middle walls
+                        if check_side == side:  # face at mid, same side
 
                             face.position.x = (face.position.x * occurances
-                                            + pose.position.x) / (occurances + 1)
+                                               + pose.position.x) / (occurances + 1)
                             face.position.y = (face.position.y * occurances
-                                            + pose.position.y) / (occurances + 1)
+                                               + pose.position.y) / (occurances + 1)
                             occurances += 1
                             self.faces[i] = (face, occurances, mid, side)
                             print("middle, same side")
-                            if occurances == self.occuranceThresh:
-                                self.update_markers()
-                        else:   #face at mid, other side
+                        else:  # face at mid, other side
                             noMatch += 1
                             print("middle, but other side, add new face")
-                    else: #img not in the middle, so no doubt
+                    else:  # img not in the middle, so no doubt
                         face.position.x = (face.position.x * occurances
-                                            + pose.position.x) / (occurances + 1)
+                                           + pose.position.x) / (occurances + 1)
                         face.position.y = (face.position.y * occurances
-                                            + pose.position.y) / (occurances + 1)
+                                           + pose.position.y) / (occurances + 1)
                         occurances += 1
                         self.faces[i] = (face, occurances, mid, side)
-                        if occurances == self.occuranceThresh:
-                            self.update_markers()
-                else:   #no match x,y -> new face
+
+                else:  # no match x,y -> new face
                     noMatch += 1
                     print("no match")
 
@@ -130,7 +135,7 @@ class marker_organizer():
                 self.marker_array.markers.append(self.make_marker(pose))
                 self.marker_num += 1
         self.publisher.publish(self.marker_array)
-        print("Marker addded")
+        print("Markes updated")
 
     def make_marker(self, pose):
         marker = Marker()
@@ -152,6 +157,7 @@ def main():
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_faces()
+
         rate.sleep()
 
 

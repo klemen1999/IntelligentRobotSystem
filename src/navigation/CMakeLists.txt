@@ -15,6 +15,16 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV)
 
+add_message_files(
+  FILES
+  CalibrationMsg.msg
+ )
+ 
+generate_messages(
+	DEPENDENCIES
+	std_msgs
+ )
+
 
 catkin_package(CATKIN_DEPENDS message_runtime roscpp rospy std_msgs)
 
