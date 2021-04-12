@@ -24,6 +24,10 @@ def get_goals():
     gridPoints = [] # grid inside the map where distance between is 25
     for i in range(0, img.shape[0], 25):
         for j in range(0, img.shape[1], 25):
+            if (i == 0 or i == img.shape[0] - 1
+                    or j == 0 or j == img.shape[1] - 1):
+                continue
+
             if not (img[i + 1, j] == 205 and img[i - 1, j] == 205
                     and img[i, j + 1] == 205 and img[i, j - 1] == 205):
                 gridPoints.append((i, j))
@@ -45,4 +49,6 @@ def get_goals():
 if __name__ == '__main__':
     rospy.init_node("goals_node")
     points = get_goals()
+    print(points)
+    print(len(points))
 
