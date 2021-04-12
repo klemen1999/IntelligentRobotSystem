@@ -31,7 +31,7 @@ catkin_package(CATKIN_DEPENDS message_runtime roscpp rospy std_msgs)
 include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 
 catkin_install_python(PROGRAMS
-    scripts/move_robot.py
+    scripts/move_robot.py scripts/auto_goals.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
