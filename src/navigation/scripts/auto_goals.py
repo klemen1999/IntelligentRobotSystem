@@ -1,8 +1,30 @@
 import rospy
 import os
 import cv2
+import actionlib
 import numpy as np
+import tf2_ros
+import tf2_geometry_msgs
 from skimage.morphology import skeletonize
+from nav_msgs.msg import OccupancyGrid
+from geometry_msgs.msg import TransformStamped, PoseStamped, Point
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+
+
+class Map:
+    def __init__(self, data):
+        self.width = data.info.width
+        self.height = data.info.height
+        self.res = round(data.info.resolution, 2)
+        self.transform = self.get_mapTransform(data.info.origin)
+
+    def get_mapTransform(self, data):
+        mapT = TransformStamped()
+        mapT.transform.translation.x = data.position.x
+        mapT.transform.translation.y = data.position.y
+        mapT.transform.translation.z = data.position.z
+        mapT.transform.rotation = data.orientation
+        return mapT
 
 
 def get_goals():
@@ -45,10 +67,53 @@ def get_goals():
 
     return pathPoints
 
+def transform_points(points, map):
+    transPoints = []
+    for point in points:
+        pt = PoseStamped()
+        pt_t = PoseStamped()
+        pt.pose.position.x = point[1] * map.res
+        
+        pt.pose.position.y = (map.height - point[0]) * map.res
+
+        pt_t = tf2_geometry_msgs.do_transform_pose(pt,map.transform)
+
+        transPoints.append(pt_t)
+
+
+    return transPoints
+
+
+def move_points(points):
+    client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
+    rospy.loginfo("Waiting for move base server")
+    client.wait_for_server()
+
+    for point in points:
+        move(point, client)
+
+    rospy.loginfo("End")
+
+
+def move(point, client):
+    goal = MoveBaseGoal()
+    goal.target_pose.header.frame_id = 'map'
+    goal.target_pose.pose = point.pose
+    goal.target_pose.pose.orientation.w = 1
+    goal.target_pose.header.stamp = rospy.Time.now()
+    print(goal)
+    client.send_goal(goal)
+    client.wait_for_result()
+
 
 if __name__ == '__main__':
     rospy.init_node("goals_node")
-    points = get_goals()
-    print(points)
-    print(len(points))
+    mapData = rospy.wait_for_message("map", OccupancyGrid)
 
+    map = Map(mapData)
+
+    points = get_goals()
+
+    transPoints = transform_points(points,map)
+
+    move_points(transPoints)
