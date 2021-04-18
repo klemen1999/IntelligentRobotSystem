@@ -1,0 +1,4 @@
+<launch>
+    <node name="face_localizer_dnn" pkg="face_detection" type="face_localizer_dnn"/>
+    <node name="face_markers2" pkg="face_detection" type="face_markers2.py"/>
+</launch>

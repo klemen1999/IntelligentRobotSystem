@@ -17,12 +17,11 @@ from std_msgs.msg import ColorRGBA
 from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 from nav_msgs.srv import GetPlan
-from auto_goals import AutoGoals
+from auto_goals import AutoNav
 
 
 class move_controller():
 	def __init__(self, points, debugStauts=False):
-		rospy.init_node("move_robot_node")
 		if debugStauts:
 			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.marker_recieved)
@@ -295,6 +294,7 @@ class move_controller():
 
 
 def main():
+	rospy.init_node("move_robot_node")
 	autoNavigator = AutoNav(25)
 	points = autoNavigator.get_mapGoals()
 	print("Got the points, will move now.")

@@ -15,6 +15,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(OpenCV)
 
+catkin_python_setup()
+
 add_message_files(
   FILES
   CalibrationMsg.msg

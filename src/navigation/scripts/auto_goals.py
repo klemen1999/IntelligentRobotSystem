@@ -5,6 +5,7 @@ import actionlib
 import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
+from matplotlib import pyplot
 from skimage.morphology import skeletonize
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import TransformStamped, PoseStamped, Point
@@ -30,9 +31,8 @@ class Map:
 class AutoNav:
     def __init__(self, gridSize):
         self.gridSize = gridSize
-        mapData = rospy.wait_for_message("map", OccupancyGrid)
-        self.map = Map(mapData)
-
+        self.mapData = rospy.wait_for_message("map", OccupancyGrid)
+        self.map = Map(self.mapData)
 
     def get_goalsImage(self):
         path = os.path.dirname(os.path.realpath(__file__))
@@ -46,7 +46,10 @@ class AutoNav:
         image[image < 240] = 0
         image[image >= 240] = 255
 
-        skeleton = skeletonize(image, method="lee")  # skeletonized map
+        kernel = np.ones((5, 5), np.uint8)
+        eroded_image = cv2.erode(image, kernel, iterations=1)
+
+        skeleton = skeletonize(eroded_image, method="lee")  # skeletonized map
         skeleton[skeleton == 255] = 60
         path = np.argwhere(skeleton == 60)  # pixels that are part of the path
 
@@ -84,7 +87,6 @@ class AutoNav:
             transPoints.append((pt_t.pose, 360, 1))
 
         return transPoints
-
 
     def get_mapGoals(self):
         points = self.get_goalsImage()
