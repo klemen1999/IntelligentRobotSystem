@@ -241,7 +241,6 @@ class move_controller():
 			pose = self.look_at(pose, target_pose)
 			return pose
 
-
 	def check_if_reachable(self, currPose, targetPose):
 		start = PoseStamped()
 		start.header.frame_id = "map"
