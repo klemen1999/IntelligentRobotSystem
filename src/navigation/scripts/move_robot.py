@@ -25,7 +25,7 @@ class move_controller():
 		if debugStauts:
 			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.marker_recieved)
-		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_currentPose)
+		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		self.points = points
 		self.facePose_sub = rospy.Subscriber("face_pose", Pose, self.new_detection)
@@ -217,7 +217,6 @@ class move_controller():
 			pose = self.closest_avaliable(pose)
 			pose = self.look_at(pose, target_pose)
 			return pose
-
 
 	def check_if_reachable(self, targetPose):
 		start = PoseStamped()
