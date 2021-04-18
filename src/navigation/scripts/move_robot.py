@@ -17,39 +17,16 @@ from std_msgs.msg import ColorRGBA
 from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 from nav_msgs.srv import GetPlan
-
-
-def readPoints():
-	points = []
-	path = os.path.realpath(__file__)
-	pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates.txt")
-	# pointsPath = os.path.join(os.path.dirname(os.path.dirname(path)), "goals/coordinates2.txt")
-	f = open(pointsPath, "r")
-	lines = f.readlines()
-	for i in range(0, len(lines), 9):
-		newPose = Pose()
-		newPose.position.x = float(lines[i + 1].split(":")[1])
-		newPose.position.y = float(lines[i + 2].split(":")[1])
-		newPose.position.z = float(lines[i + 3].split(":")[1])
-		newPose.orientation.x = float(lines[i + 4].split(":")[1])
-		newPose.orientation.y = float(lines[i + 5].split(":")[1])
-		newPose.orientation.z = float(lines[i + 6].split(":")[1])
-		newPose.orientation.w = float(lines[i + 7].split(":")[1])
-		temp = lines[i + 8].split(" ")
-		rotDeg = float(temp[0])
-		clockwise = True if int(temp[1]) else False
-		points.append((newPose, rotDeg, clockwise))
-	return points
+from auto_goals import AutoGoals
 
 
 class move_controller():
-
 	def __init__(self, points, debugStauts=False):
 		rospy.init_node("move_robot_node")
 		if debugStauts:
 			self.status_sub = rospy.Subscriber("/move_base/status", GoalStatusArray, self.print_status)
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.marker_recieved)
-		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_rotation)
+		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_currentPose)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		self.points = points
 		self.facePose_sub = rospy.Subscriber("face_pose", Pose, self.new_detection)
@@ -92,11 +69,13 @@ class move_controller():
 	def move_to_points(self):
 		for point in self.points:
 			pose, rotDeg, clockwise = point
+			if not self.check_if_reachable(pose):
+				continue
+
 			marker = self.make_marker(pose)
 			self.goal_publisher.publish(marker)
 			self.move(pose)
 			self.rotate(40, rotDeg, clockwise)
-
 			# try to move to a face (if you found new/haven't visited already)
 			try:
 				if self.face_marker_array != None and self.face_marker_array.markers != None and len(
@@ -130,7 +109,6 @@ class move_controller():
 		goal = MoveBaseGoal()
 		goal.target_pose.header.frame_id = 'map'
 		goal.target_pose.pose = pose
-
 		self.client.send_goal(goal)
 		self.client.wait_for_result()
 
@@ -138,7 +116,7 @@ class move_controller():
 		print("New possible detection")
 
 	def new_face_detection(self, msg):
-		if (msg.status == "NEW_FACE"):
+		if msg.status == "NEW_FACE":
 			print("New face")
 			self.slowDown = True
 			self.slowDownStart = rospy.Time.now()
@@ -169,10 +147,10 @@ class move_controller():
 		self.velocity_pub.publish(vel_msg)
 
 	def closeTo(self, value, reference, threshold):
-		return (value <= (reference + threshold) and value >= reference) \
-			   or (value >= (reference - threshold) and value <= reference)
+		return ((reference + threshold) >= value >= reference) \
+			   or ((reference - threshold) <= value <= reference)
 
-	def get_rotation(self, msg):
+	def get_odometry(self, msg):
 		self.current_position = msg.pose.pose
 		orientation_q = msg.pose.pose.orientation
 		orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
@@ -234,17 +212,18 @@ class move_controller():
 		q = Quaternion(q[0], q[1], q[2], q[3])
 
 		pose = Pose(v, q)
-		if self.check_if_reachable(curr_pose, pose):
+		if self.check_if_reachable(pose):
 			return pose
 		else:
-			pose = self.closest_avaliable(curr_pose,pose)
+			pose = self.closest_avaliable(pose)
 			pose = self.look_at(pose, target_pose)
 			return pose
 
-	def check_if_reachable(self, currPose, targetPose):
+
+	def check_if_reachable(self, targetPose):
 		start = PoseStamped()
 		start.header.frame_id = "map"
-		start.pose = currPose
+		start.pose = self.current_position
 		goal = PoseStamped()
 		goal.header.frame_id = "map"
 		goal.pose = targetPose
@@ -255,25 +234,25 @@ class move_controller():
 		else:
 			return False
 
-	def closest_avaliable(self, currPose, targetPose):
+	def closest_avaliable(self, targetPose):
 		tempRight = tempLeft = tempUp = tempDown = targetPose
 		margin = 0.2
 		counter = 0
 		while counter < 10:
 			tempRight.position.x += margin
-			if self.check_if_reachable(currPose, tempRight):
+			if self.check_if_reachable(tempRight):
 				print("right")
 				return tempRight
 			tempLeft.position.x -= margin
-			if self.check_if_reachable(currPose, tempLeft):
+			if self.check_if_reachable(tempLeft):
 				print("left")
 				return tempLeft
 			tempLeft.position.y += margin
-			if self.check_if_reachable(currPose, tempUp):
+			if self.check_if_reachable(tempUp):
 				print("up")
 				return tempUp
 			tempLeft.position.y -= margin
-			if self.check_if_reachable(currPose, tempDown):
+			if self.check_if_reachable(tempDown):
 				print("down")
 				return tempDown
 			counter += 1
@@ -316,7 +295,9 @@ class move_controller():
 
 
 def main():
-	points = readPoints()
+	autoNavigator = AutoNav(25)
+	points = autoNavigator.get_mapGoals()
+	print("Got the points, will move now.")
 	mover = move_controller(points, True)
 	mover.calibrate()
 	mover.move_to_points()
