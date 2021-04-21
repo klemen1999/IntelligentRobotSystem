@@ -1,14 +1,15 @@
 import rospy
 import os
+import math
 import cv2
 import actionlib
 import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
-from matplotlib import pyplot
+from PIL import Image
 from skimage.morphology import skeletonize
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import TransformStamped, PoseStamped, Point
+from geometry_msgs.msg import TransformStamped, PoseStamped, Point, Pose
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 
@@ -18,6 +19,7 @@ class Map:
         self.height = data.info.height
         self.res = round(data.info.resolution, 2)
         self.transform = self.get_mapTransform(data.info.origin)
+
 
     def get_mapTransform(self, data):
         mapT = TransformStamped()
@@ -29,10 +31,12 @@ class Map:
 
 
 class AutoNav:
-    def __init__(self, gridSize):
+    def __init__(self, gridSize, viz=False):
         self.gridSize = gridSize
+        self.viz = viz
         self.mapData = rospy.wait_for_message("map", OccupancyGrid)
         self.map = Map(self.mapData)
+
 
     def get_goalsImage(self):
         path = os.path.dirname(os.path.realpath(__file__))
@@ -46,7 +50,7 @@ class AutoNav:
         image[image < 240] = 0
         image[image >= 240] = 255
 
-        kernel = np.ones((5, 5), np.uint8)
+        kernel = np.ones((10, 10), np.uint8)
         eroded_image = cv2.erode(image, kernel, iterations=1)
 
         skeleton = skeletonize(eroded_image, method="lee")  # skeletonized map
@@ -73,9 +77,40 @@ class AutoNav:
                 if dist < maxD:
                     maxD = dist
                     maxP = pathP
-            pathPoints.append((maxP[0], maxP[1]))
+            pathPoints.append(maxP)
 
-        return pathPoints
+        betterPoints = []
+        pathPoints.reverse()  # just some hardcoding to get the correct points
+        distThreshold = 10  # how close can points be together
+        add = True
+        for i in range(0, len(pathPoints)): # removing to close points
+            for j in range(i + 1, len(pathPoints)):
+                dist = np.linalg.norm(pathPoints[i] - pathPoints[j])
+                if dist < distThreshold:
+                    add = False
+                    break
+            if add:
+                betterPoints.append(pathPoints[i])
+            add = True
+
+        if self.viz:
+            self.vizualize(image, path, betterPoints)
+
+        return betterPoints
+
+    def vizualize(self, image, path, points):
+        for point in path:
+            image[point[0],point[1]] = 60
+        for point in points:
+            image[point[0],point[1]] = 150
+
+        coloredImage = np.zeros((image.shape[0], image.shape[1], 3), np.uint8)
+        coloredImage[image == 255] = [255, 255, 255]
+        coloredImage[image == 60] = [42, 245, 86]
+        coloredImage[image == 205] = [40, 40, 40]
+        coloredImage[image == 150] = [245, 59, 42]
+        Image.fromarray(coloredImage).show()
+
 
     def transform_points(self, points):
         transPoints = []
@@ -84,14 +119,39 @@ class AutoNav:
             pt.pose.position.x = point[1] * self.map.res
             pt.pose.position.y = (self.map.height - point[0]) * self.map.res
             pt_t = tf2_geometry_msgs.do_transform_pose(pt, self.map.transform)
-            transPoints.append((pt_t.pose, 360, 1))
-
+            transPoints.append(pt_t.pose)
         return transPoints
+
+
+    def calcDistance(self, point1, point2):
+        return math.sqrt((point1.x-point2.x)**2 + (point1.y-point2.y)**2)
+
+    def findClosest(self, current, pointList):
+        minD = np.inf
+        minP = None
+        for point in pointList:
+            dist = self.calcDistance(current.position, point.position)
+            if dist<minD:
+                minD = dist
+                minP = point
+        pointList.remove(minP)
+        return minP, pointList
+
+    def sortPoints(self, points):
+        sortedPoints = []
+        prev = Pose()
+        while len(points) > 0:
+            current, points = self.findClosest(prev, points)
+            sortedPoints.append((current, 360, 1))
+            prev = current
+
+        return sortedPoints
 
     def get_mapGoals(self):
         points = self.get_goalsImage()
         transPoints = self.transform_points(points)
-        return transPoints
+        sortedPoints = self.sortPoints(transPoints)
+        return sortedPoints
 
 
 def move_points(points):
@@ -103,7 +163,7 @@ def move_points(points):
         p = PoseStamped()
         p.pose = point
         move(p, client)
-        print("goig to next goal")
+        print("going to next goal")
     rospy.loginfo("End")
 
 

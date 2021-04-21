@@ -83,9 +83,9 @@ class move_controller():
 			except Exception as e:
 				print(e)
 
-			if len(self.alreadyVisitedMarkers) == 3:
-				print("Found 3 faces. I'm gonna stop now.")
-				return
+			# if len(self.alreadyVisitedMarkers) == 3:
+			# 	print("Found 3 faces. I'm gonna stop now.")
+			# 	return
 
 		rospy.loginfo("End")
 
@@ -294,11 +294,13 @@ class move_controller():
 
 def main():
 	rospy.init_node("move_robot_node")
+	print("Getting autoNavigator goals")
 	autoNavigator = AutoNav(25)
 	points = autoNavigator.get_mapGoals()
-	print("Got the points, will move now.")
-	mover = move_controller(points, True)
+	mover = move_controller(points, False)
+	print("Calibrating")
 	mover.calibrate()
+	print("Going to goals")
 	mover.move_to_points()
 
 
