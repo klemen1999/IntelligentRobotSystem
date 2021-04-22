@@ -6,10 +6,11 @@ import actionlib
 import numpy as np
 import tf2_ros
 import tf2_geometry_msgs
+from tf.transformations import *
 from PIL import Image
 from skimage.morphology import skeletonize
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import TransformStamped, PoseStamped, Point, Pose
+from geometry_msgs.msg import TransformStamped, PoseStamped, Point, Pose, Quaternion
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 
@@ -98,7 +99,7 @@ class AutoNav:
 
         return betterPoints
 
-    def vizualize(self, image, path, points):
+    def vizualize(self, image, path, points): # if we want to see an image with path and goals
         for point in path:
             image[point[0],point[1]] = 60
         for point in points:
@@ -112,7 +113,7 @@ class AutoNav:
         Image.fromarray(coloredImage).show()
 
 
-    def transform_points(self, points):
+    def transform_points(self, points): #transforming points to map coordinates
         transPoints = []
         for point in points:
             pt = PoseStamped()
@@ -137,21 +138,44 @@ class AutoNav:
         pointList.remove(minP)
         return minP, pointList
 
-    def sortPoints(self, points):
+    def sortPoints(self, points): # finding an optimal path through the goals
         sortedPoints = []
         prev = Pose()
         while len(points) > 0:
             current, points = self.findClosest(prev, points)
-            sortedPoints.append((current, 360, 1))
+            sortedPoints.append(current)
             prev = current
 
         return sortedPoints
+
+    def look_at(self, curr_pose, target_pose): # calc pose at curr_pose position looking at target_pose
+        new = Pose()
+        dx = target_pose.position.x - curr_pose.position.x
+        dy = target_pose.position.y - curr_pose.position.y
+        rad = math.atan2(dy, dx)
+        q = quaternion_from_euler(0, 0, rad)
+        q = Quaternion(q[0], q[1], q[2], q[3])
+        new.position = curr_pose.position
+        new.orientation = q
+        return new
+
+    def getPoses(self, points): # points to poses, ready for move_base
+        poses = []
+        for i in range(0,len(points)):
+            if i == (len(points)-1):
+                pose = self.look_at(points[i], points[0])
+            else:
+                pose = self.look_at(points[i], points[i+1])
+            poses.append((pose, 360, 1))
+        return poses
+
 
     def get_mapGoals(self):
         points = self.get_goalsImage()
         transPoints = self.transform_points(points)
         sortedPoints = self.sortPoints(transPoints)
-        return sortedPoints
+        poses = self.getPoses(sortedPoints)
+        return poses
 
 
 def move_points(points):
