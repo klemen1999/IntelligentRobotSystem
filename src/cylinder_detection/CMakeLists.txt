@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(exercise6)
+project(cylinder_detection)
 
 ## Find system dependencies
 find_package(Boost REQUIRED COMPONENTS system filesystem thread)

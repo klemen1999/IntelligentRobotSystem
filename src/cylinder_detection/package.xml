@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>exercise6</name>
+  <name>cylinder_detection</name>
   <version>0.0.0</version>
   <description>The PCL demos package</description>
   <maintainer email="luka.cehovin@gmail.com">Luka Cehovin</maintainer>
