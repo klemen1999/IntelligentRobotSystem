@@ -33,14 +33,14 @@ class The_Ring:
         self.depth_sub = rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_callback)
 
         # Publiser for the visualization markers
-        self.markers_pub = rospy.Publisher('markers', MarkerArray, queue_size=1000)
-
+        #self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
+        self.pose_pub = rospy.Publisher('ring_pose', Pose, queue_size=1000)
         # Object we use for transforming between coordinate frames
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
 
 
-    def get_pose(self,e,dist):
+    def get_pose(self,e,dist, stamp):
         # Calculate the position of the detected ellipse
 
         k_f = 525 # kinect focal length in pixels
@@ -53,21 +53,14 @@ class The_Ring:
         # Get the angles in the base_link relative coordinate system
         x,y = dist*np.cos(angle_to_target), dist*np.sin(angle_to_target)
 
-        ### Define a stamped message for transformation - directly in "base_frame"
-        #point_s = PointStamped()
-        #point_s.point.x = x
-        #point_s.point.y = y
-        #point_s.point.z = 0.3
-        #point_s.header.frame_id = "base_link"
-        #point_s.header.stamp = rospy.Time(0)
-
         # Define a stamped message for transformation - in the "camera rgb frame"
         point_s = PointStamped()
         point_s.point.x = -y
         point_s.point.y = 0
         point_s.point.z = x
         point_s.header.frame_id = "camera_rgb_optical_frame"
-        point_s.header.stamp = rospy.Time(0)
+        #point_s.header.frame_id = "camera_depth_optical_frame"
+        point_s.header.stamp = stamp
 
         # Get the point in the "map" coordinate system
         point_world = self.tf_buf.transform(point_s, "map")
@@ -78,6 +71,7 @@ class The_Ring:
         pose.position.y = point_world.point.y
         pose.position.z = point_world.point.z
 
+        """
         # Create a marker used for visualization
         self.marker_num += 1
         marker = Marker()
@@ -94,11 +88,15 @@ class The_Ring:
         self.marker_array.markers.append(marker)
 
         self.markers_pub.publish(self.marker_array)
+        """
+        self.pose_pub.publish(pose)
         
     def depth_callback(self,data):
         #print("got a DEPTH image")
         try:
             depth_image = self.bridge.imgmsg_to_cv2(data, "16UC1")
+            #get float32
+            depp = self.bridge.imgmsg_to_cv2(data, "32FC1")
         except CvBridgeError as e:
             print(e)
 
@@ -110,12 +108,8 @@ class The_Ring:
         image_1 =image_1/np.max(image_1)*255
 
         image_viz = np.array(image_1, dtype= np.uint8)
-
-        # Do histogram equlization
-        #img = cv2.equalizeHist(depth_image)
         
         # Binarize the image
-        #ret, thresh = cv2.threshold(img, 50, 255, 0)
         ret, thresh = cv2.threshold(image_viz, 50, 255, cv2.THRESH_BINARY)
         
 
@@ -123,14 +117,9 @@ class The_Ring:
         # Extract contours
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-        # Example how to draw the contours
-        # cv2.drawContours(img, contours, -1, (255, 0, 0), 3)
-
         # Fit elipses to all extracted contours
         elps = []
         for cnt in contours:
-            #     print cnt
-            #     print cnt.shape
             if cnt.shape[0] >= 20:
                 ellipse = cv2.fitEllipse(cnt)
                 elps.append(ellipse)
@@ -143,7 +132,6 @@ class The_Ring:
                 e1 = elps[n]
                 e2 = elps[m]
                 dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
-                #             print dist
                 if dist < 5:
                     candidates.append((e1,e2))
 
@@ -180,9 +168,11 @@ class The_Ring:
             y_min = y1 if y1 > 0 else 0
             y_max = y2 if y2 < cv_image.shape[1] else cv_image.shape[1]
 
-            #depth_image = self.bridge.imgmsg_to_cv2(depth_img, "16UC1")
+            # Get the time that the depth image was recieved
+            depth_time = data.header.stamp
 
-            self.get_pose(e1, float(np.mean(depth_image[x_min:x_max,y_min:y_max]))/1000.0)
+            #self.get_pose(e1, float(np.nanmean(depp[x_min:x_max,y_min:y_max])), depth_time)
+            self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
         if len(candidates)>0:
             cv2.imshow("Image window",cv_image)
             cv2.waitKey(1)

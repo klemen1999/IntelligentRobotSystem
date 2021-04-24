@@ -16,6 +16,7 @@ catkin_package()
 
 catkin_install_python(PROGRAMS
     scripts/detect_rings
+    scripts/ring_markers.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
     
