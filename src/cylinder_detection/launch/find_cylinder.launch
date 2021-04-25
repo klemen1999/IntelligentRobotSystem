@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <launch>
 
-    <node pkg="cylinder_detection" type="cylinder_segmentation" name="cylinder_segmentation">
+    <node pkg="cylinder_detection" type="cylinder_segmentation" name="cylinder_segmentation" output="screen">
         <remap from="input" to="/camera/depth/points"/>
     </node>
 

@@ -129,13 +129,14 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
   extract.filter (*cloud_cylinder);
   if (cloud_cylinder->points.empty ()) 
     std::cerr << "Can't find the cylindrical component." << std::endl;
-  else
+  else if (cloud_cylinder->points.size () > 15000)
   {
 	  std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size () << " data points." << std::endl;
           
           pcl::compute3DCentroid (*cloud_cylinder, centroid);
           std::cerr << "centroid of the cylindrical component: " << centroid[0] << " " <<  centroid[1] << " " <<   centroid[2] << " " <<   centroid[3] << std::endl;
-
+    
+    ROS_INFO("num of points: %lu", cloud_cylinder->points.size () );
 	  //Create a point in the "camera_rgb_optical_frame"
           geometry_msgs::PointStamped point_camera;
           geometry_msgs::PointStamped point_map;
@@ -207,6 +208,8 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
           pcl::toPCLPointCloud2 (*cloud_cylinder, outcloud_cylinder);
           puby.publish (outcloud_cylinder);
 
+  } else {
+    ROS_INFO("not enough points but a cylinder found: %lu", cloud_cylinder->points.size () );
   }
   
 }
@@ -217,7 +220,6 @@ main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "cylinder_segment");
   ros::NodeHandle nh;
-
   // For transforming between coordinate frames
   tf2_ros::TransformListener tf2_listener(tf2_buffer);
 
