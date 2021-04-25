@@ -105,14 +105,15 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
   extract_normals.setIndices (inliers_plane);
   extract_normals.filter (*cloud_normals2);
 
+
   // Create the segmentation object for cylinder segmentation and set all the parameters
   seg.setOptimizeCoefficients (true);
   seg.setModelType (pcl::SACMODEL_CYLINDER);
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setNormalDistanceWeight (0.1);
-  seg.setMaxIterations (100);
+  seg.setMaxIterations (1000);
   seg.setDistanceThreshold (0.01);
-  seg.setRadiusLimits (0.12, 0.15);
+  seg.setRadiusLimits (0.09, 0.15);
   seg.setInputCloud (cloud_filtered2);
   seg.setInputNormals (cloud_normals2);
 
@@ -190,8 +191,8 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
           marker.pose.orientation.w = 1.0;
 
           marker.scale.x = 0.1;
-	      marker.scale.y = 0.1;
-	      marker.scale.z = 0.1;
+          marker.scale.y = 0.1;
+          marker.scale.z = 0.1;
 
           marker.color.r=0.0f;
           marker.color.g=1.0f;
