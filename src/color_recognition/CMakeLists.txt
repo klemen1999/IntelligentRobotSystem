@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(ring_detection)
+project(color_recognition)
 
 find_package(catkin REQUIRED
     roscpp
@@ -12,22 +12,21 @@ find_package(catkin REQUIRED
 
 add_message_files(
   FILES
-  IntList.msg
-  Int2dArray.msg
  )
- 
+
 generate_messages(
 	DEPENDENCIES
 	std_msgs
 )
- 
-catkin_package(CATKIN_DEPENDS message_runtime)
 
+catkin_package(
+    CATKIN_DEPENDS message_runtime
+)
 
 
 catkin_install_python(PROGRAMS
-    scripts/detect_rings
-    scripts/ring_markers.py
+    scripts/randomForest.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
-    
+
+
