@@ -12,6 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import math
+from ring_detection.msg import Int2dArray, IntList
 
 
 class The_Ring:
@@ -40,7 +41,7 @@ class The_Ring:
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
 
-        self.ring_color_pub = rospy.Publisher('ring_color_pub', Image, queue_size=5)
+        self.ring_color_pub = rospy.Publisher('ring_color_pub', Int2dArray, queue_size=5)
 
 
     def get_pose(self,e,dist, stamp):
@@ -83,8 +84,8 @@ class The_Ring:
     def insideOutside(self, h, k, x, y, a, b):
         # checking the equation of
         # ellipse with the given point
-        p = ((math.pow((x - h), 2) // math.pow(a, 2)) +
-            (math.pow((y - k), 2) // math.pow(b, 2)))
+        p = ((math.pow((x - h), 2) / math.pow(a, 2)) +
+            (math.pow((y - k), 2) / math.pow(b, 2)))
     
         return p
         
@@ -181,15 +182,18 @@ class The_Ring:
             self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
 
             color_list = []
+            msg_list = Int2dArray()
             for i in range(x_min, x_max):
                 for j in range(y_min, y_max):
                     p = self.insideOutside(center[0], center[1], i, j, size/2, size/2)
                     p2 = self.insideOutside(center2[0], center2[1], i, j, size2/2, size2/2)
-                    if (p < 1 and p2 > 1) or (p > 1 and p2 < 1) or p == 1 or p2 == 1:  
-                        print(cv_image[i][j])
+                    if (p < 1 and p2 > 1) or (p > 1 and p2 < 1):    # or p == 1 or p2 == 1  
+                        color_list.append(cv_image[i][j])
+                        col = IntList()
+                        col.elements = [cv_image[i][j][2], cv_image[i][j][1], cv_image[i][j][0]]
+                        msg_list.lists.append(col)
 
-
-            #self.ring_color_pub.publish(cv_rgb[x_min:x_max,y_min:y_max])
+            self.ring_color_pub.publish(msg_list)
         if len(candidates)>0:
             cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
             cv2.waitKey(1)
