@@ -150,7 +150,7 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
     
     int counter = 0;
     int s = cloud_cylinder->points.size ();
-    int colors[1000][3];
+    // get 1000 random points' colors
     for (counter = 0; counter < 1000; counter++){
       int ind = rand() % s;
       int rgb [3] = { cloud_cylinder->points[ind].r, cloud_cylinder->points[ind].g, cloud_cylinder->points[ind].b };
@@ -160,14 +160,10 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
       rgb_arr[1] = cloud_cylinder->points[ind].g;
       rgb_arr[2] = cloud_cylinder->points[ind].b;
       list.elements = rgb_arr;
-
+      // put array into our 2d array custom msg
       lists[counter] = list;
-      //copy(begin(rgb), end(rgb), begin(list.elements)) 
-      //colors[counter][0] = cloud_cylinder->points[ind].r;
-      //colors[counter][1] = cloud_cylinder->points[ind].g;
-      //colors[counter][2] = cloud_cylinder->points[ind].b;
     }
-
+    // custom msg
     msg.lists = lists;
 
 
@@ -203,14 +199,15 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
           //std::cerr << tss ;
 
           tf2::doTransform(point_camera, point_map, tss);
-
+          
+          // get marker pose
           geometry_msgs::Pose pose_marker;
           pose_marker.position.x = point_map.point.x;
           pose_marker.position.y = point_map.point.y;
           pose_marker.position.z = point_map.point.z;
-
+          // put pose into custom msg
           msg.pose = pose_marker;
-
+          // publish marker pose with 1000 RGB color info of points
           pub_cylinder_pose.publish(msg);
 
 	      std::cerr << "point_camera: " << point_camera.point.x << " " <<  point_camera.point.y << " " <<  point_camera.point.z << std::endl;
