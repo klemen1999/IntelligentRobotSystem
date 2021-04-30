@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import tf2_geometry_msgs
 import tf2_ros
+import math
 
 # import matplotlib.pyplot as plt
 
@@ -71,7 +72,7 @@ class face_localizer_dnn:
         face_y = self.dims[0] / 2 - (y1 + y2) / 2.
 
         angle_to_target = np.arctan2(face_x, k_f)
-        print(angle_to_target)
+        # print(angle_to_target)
 
         # Get the angles in the base_link relative coordinate system
 
@@ -200,19 +201,26 @@ class face_localizer_dnn:
 
                 # Get depth of points
 
-                distLeft = float(np.nanmean(depth_image[y1:y1+2,x1:x1+2]))
-                poseLeft = self.get_pose((x1,x1+2,y1,y1+2), distLeft, depth_time)
+                distLeft = float(np.nanmean(depth_image[y1:y1+5,x1:x1+5]))
+                poseLeft = self.get_pose((x1,x1+5,y1,y1+5), distLeft, depth_time)
 
-                distRight = float(np.nanmean(depth_image[y1:y1+2,x2:x2+2]))
-                poseRight = self.get_pose((x2,x2+2,y1,y1+2), distRight, depth_time)
+                distRight = float(np.nanmean(depth_image[y1:y1+5,x2:x2+5]))
+                poseRight = self.get_pose((x2,x2+5,y1,y1+5), distRight, depth_time)
 
-                if poseMiddle is not None:
+                if poseMiddle is not None and poseLeft is not None and poseRight is not None and \
+                    self.checkNan(poseMiddle) and self.checkNan(poseLeft) and self.checkNan(poseRight):
                     message = FacePoses()
                     message.poseMiddle = poseMiddle
                     message.poseLeft = poseLeft
                     message.poseRight = poseRight
                     self.pose_pub.publish(message)
 
+    def checkNan(self, pose):
+        if math.isnan(pose.position.x) or math.isnan(pose.position.y) \
+                or math.isnan(pose.position.z):
+            return False
+        else:
+            return True
 
     def depth_callback(self, data):
 

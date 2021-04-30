@@ -8,6 +8,7 @@ from face_detection.msg import ImageStatus, FacePoses
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 import numpy as np
+import math
 
 
 class marker_organizer():
@@ -18,18 +19,15 @@ class marker_organizer():
         self.buffer = []  # buffer to catch poses from face_pose topic
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
-        self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_robot_position)
         self.faces = []
         self.marker_array = MarkerArray()
-        self.marker_num = 1
+        self.markerID = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
         self.robot_position = []
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
-        self.start = True # TODO: CHANGE TO FALSE
+        self.start = False # TODO: CHANGE TO FALSE
 
-        self.testMarkers = rospy.Publisher('test_markers', MarkerArray, queue_size=1000)
-        self.unitN = None
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
@@ -38,174 +36,67 @@ class marker_organizer():
 
     def new_detection(self, pose):
         if self.start:
-            self.testing(pose)
             self.update_markers()
-            self.buffer.append(pose.poseMiddle)
-
-    def testing(self, pose):
-        length = 1
-        middlePoint = np.array([(pose.poseRight.position.x+pose.poseLeft.position.x)/2, (pose.poseRight.position.y+pose.poseLeft.position.y)/2])
-        vecLeftRight = np.array([pose.poseRight.position.x-pose.poseLeft.position.x, pose.poseRight.position.y-pose.poseLeft.position.y])
-        normal = np.array([vecLeftRight[1], -vecLeftRight[0]])
-        unitNormal = normal / np.linalg.norm(normal)
-        if np.isnan(unitNormal).any():
-            print("test")
-            return
-        if self.unitN is None:
-            self.unitN = unitNormal
-            self.num = 1
-        else:
-            self.unitN = (self.unitN*self.num + unitNormal) / (self.num+1)
-            self.num += 1
-
-        endPoint = middlePoint + self.unitN*length
-
-        a = Point()
-        a.x = middlePoint[0]
-        a.y = middlePoint[1]
-        a.z = 0.1
-
-        b = Point()
-        b.x = endPoint[0]
-        b.y = endPoint[1]
-        b.z = 0.1
-
-        arr = MarkerArray()
-        m = Marker()
-        m.action = Marker.ADD
-        m.header.frame_id = 'map'
-        m.header.stamp = rospy.Time.now()
-        m.id = 0
-        m.type = Marker.ARROW
-        m.pose.orientation.y = 0
-        m.pose.orientation.w = 1
-        m.color = ColorRGBA(0, 1, 0, 1)
-        m.scale = Vector3(0.1,0.1,0.1)
-        m.points = [a, b]
-        arr.markers.append(m)
-        # midP = Pose()
-        # midP.position.x = middlePoint[0]
-        # midP.position.y = middlePoint[1]
-        # midP.position.z = pose.poseLeft.position.z
-        # for i in range(3):
-        #     marker = Marker()
-        #     marker.header.stamp = rospy.Time(0)
-        #     marker.header.frame_id = 'map'
-        #     marker.pose = pose.poseLeft if i == 0 else (pose.poseRight if i==1 else midP)
-        #     marker.type = Marker.SPHERE
-        #     marker.action = Marker.ADD
-        #     marker.frame_locked = False
-        #     marker.lifetime = rospy.Duration.from_sec(0)
-        #     marker.id = i
-        #     marker.scale = Vector3(0.1, 0.1, 0.1)
-        #     marker.color = ColorRGBA(1, 0, 0, 1) if i<2 else ColorRGBA(0,1,0,1)
-        #     arr.markers.append(marker)
-
-        self.testMarkers.publish(arr)
+            self.buffer.append(pose)
 
 
-    def img_in_the_middle(self, x, y):
-        first_x1 = 0.2
-        first_x2 = 0.6
-        first_y1 = -0.6
-        first_y2 = 1.6
-
-        second_x1 = 0.4
-        second_x2 = 1.6
-        second_y1 = -0.65
-        second_y2 = 0
-
-        if first_x1 <= x <= first_x2 and first_y1 <= y <= first_y2:
-            # print("img at the first middle wall!")
-            return 0  # img is on the first middle wall
-        elif second_x1 <= x <= second_x2 and second_y1 <= y <= second_y2:
-            # print("img at the second middle wall!")
-            return 1  # img is on the second mid wall
-        return -1  # img is not in the middle
-
-    def get_robot_position(self, msg):  # get robots x,y position
-        p = msg.pose.pose.position
-        x = p.x
-        y = p.y
-        self.robot_position = [x, y]
-
-    def check_side(self, wall, x_robot, y_robot):
-        if wall == 0:  # first middle wall
-            if x_robot > 0.4:  # check on which side it is
-                return 0
-            else:
-                return 1
-        elif wall == 1:  # second mid wall
-            if y_robot < -0.4:  # check on which side the robot is
-                return 0
-            else:
-                return 1
-        return -1  # img is not in the middle walls
-
+    # self.faces has tuple of (poseMiddle, normal, occurances, markerID)
     def check_faces(self):
         for pose in self.buffer:
             noMatch = 0
 
-            check_midle = self.img_in_the_middle(pose.position.x, pose.position.y)
+            poseMiddle = pose.poseMiddle
+            poseLeft = pose.poseLeft
+            poseRight = pose.poseRight
+            # calculating new unit normal based on new poses
+            vecLeftRight = np.array([poseRight.position.x - poseLeft.position.x,
+                                     poseRight.position.y - poseLeft.position.y])
+            newNormal = np.array([vecLeftRight[1], -vecLeftRight[0]])
+            newUnitNormal = newNormal / np.linalg.norm(newNormal)
 
-            check_side = self.check_side(check_midle, self.robot_position[0], self.robot_position[1])
-
-            for i, (face, occurances, mid, side) in enumerate(self.faces):
+            for i, (face, normal, occurances, markerID) in enumerate(self.faces):
                 numMatches = 0
-                if face.position.x - self.distThresh <= pose.position.x \
+                # check for x and y
+                if face.position.x - self.distThresh <= poseMiddle.position.x \
                         <= face.position.x + self.distThresh:
                     numMatches += 1
-                if face.position.y - self.distThresh <= pose.position.y \
+                if face.position.y - self.distThresh <= poseMiddle.position.y \
                         <= face.position.y + self.distThresh:
                     numMatches += 1
-                # zna bit problem če so dve sliki na isti steni ampak na drugi strani
-
-                if numMatches == 2:
-                    # face matches x,y
-                    if check_midle > -1:
-                        # face is at the middle walls
-                        if check_side == side:  # face at mid, same side
-
-                            face.position.x = (face.position.x * occurances
-                                               + pose.position.x) / (occurances + 1)
-                            face.position.y = (face.position.y * occurances
-                                               + pose.position.y) / (occurances + 1)
-                            occurances += 1
-                            self.faces[i] = (face, occurances, mid, side)
-                            print("middle, same side")
-                        else:  # face at mid, other side
-                            noMatch += 1
-                            print("middle, but other side, add new face")
-                    else:  # img not in the middle, so no doubt
+                # check for normal matching: greater than 0 means angle is >90
+                if np.dot(normal, newUnitNormal) > 0:
+                    numMatches += 1
+                # we have new detection of known face
+                if numMatches == 3:
                         face.position.x = (face.position.x * occurances
-                                           + pose.position.x) / (occurances + 1)
+                                           + poseMiddle.position.x) / (occurances + 1)
                         face.position.y = (face.position.y * occurances
-                                           + pose.position.y) / (occurances + 1)
+                                           + poseMiddle.position.y) / (occurances + 1)
+                        normal = (normal * occurances + newUnitNormal) / (occurances + 1)
                         occurances += 1
-                        self.faces[i] = (face, occurances, mid, side)
+                        self.faces[i] = (face, normal, occurances, markerID)
 
-                else:  # no match x,y -> new face
+                else:  # didn't match on all -> could be new face
                     noMatch += 1
-                    print("no match")
 
-            if noMatch == len(self.faces):
+            if noMatch == len(self.faces):  # definetly new face
                 status_message = ImageStatus()
                 status_message.status = "NEW_FACE"
+                newId = self.markerID
                 self.img_status_pub.publish(status_message)
-                self.faces.append((pose, 1, check_midle, check_side))
+                self.faces.append((poseMiddle, newUnitNormal, 1, newId))
+                self.markerID += 1
         self.buffer = []
 
     def update_markers(self):
         self.marker_array.markers = []
-        self.marker_num = 1
-        for (pose, occurances, mid, side) in self.faces:
-            if occurances > 1:
-                self.marker_array.markers.append(self.make_marker(pose, occurances))
-                self.marker_num += 1
+        for (pose, _, occurances, markerID) in self.faces:
+            self.marker_array.markers.append(self.make_marker(pose, occurances, markerID))
+
         self.publisher.publish(self.marker_array)
         print("Markes updated")
 
-    def make_marker(self, pose, occurances):
+    def make_marker(self, pose, occurances, markerID):
         marker = Marker()
         marker.header.stamp = rospy.Time(0)
         marker.header.frame_id = 'map'
@@ -215,9 +106,10 @@ class marker_organizer():
         marker.action = Marker.ADD
         marker.frame_locked = False
         marker.lifetime = rospy.Duration.from_sec(0)
-        marker.id = self.marker_num
+        marker.id = markerID
         marker.scale = Vector3(0.3,0.3,0.3)
-        marker.color = ColorRGBA(0, 1, 0, 1) if occurances >= self.occuranceThresh else ColorRGBA(1, 0, 0, 1)
+        marker.color = ColorRGBA(0, 1, 0, 1) if occurances >= self.occuranceThresh \
+            else ColorRGBA(1, 0, 0, 1)
         return marker
 
 
