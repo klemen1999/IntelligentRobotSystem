@@ -22,13 +22,15 @@ class RandomForest:
         self.CLASSES = {"white": 0, "black": 1, "red": 2, "blue": 3, "green": 4, "yellow": 5}
 
         self.ring_rgb_list_sub = rospy.Subscriber("ring_color_pub", Int2dArray, self.ring_callback)
+        
+        self.cylinder_rgb_list_sub = rospy.Subscriber("cylinder_color_pose", Int2dArray, self.cylinder_callback)
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
         filename = '/color_model_RF.sav'
         self.loaded_model = pickle.load(open(base_dir + filename, 'rb'))
 
         self.pose_color_ring_pub = rospy.Publisher('ring_pose', PoseColor, queue_size=1000)
-
+        self.pose_color_cylinder_pub = rospy.Publisher('cylinder_pose', PoseColor, queue_size=1000)
         
     
     def ring_callback(self, data):
@@ -44,6 +46,20 @@ class RandomForest:
         msg.color = col
         #publish to markers (pose and color)
         self.pose_color_ring_pub.publish(msg)
+    
+    def cylinder_callback(self, data):
+        colors = data.lists
+        np_colors = np.empty((len(colors), 3))
+        for i in range(len(colors)):
+            np_colors[i] = colors[i].elements
+        rgb_hsv_data = self.getImageData(np_colors)
+        col = self.predict(rgb_hsv_data)
+        
+        msg = PoseColor()
+        msg.pose = data.pose
+        msg.color = col
+        #publish to markers (pose and color)
+        self.pose_color_cylinder_pub.publish(msg)
 
     def predict(self, colors):
         result = self.loaded_model.predict(colors)
