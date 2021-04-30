@@ -6,13 +6,14 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose
 from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
-
+from color_recognition.msg import PoseColor
+import operator
 
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('ring_markers_node')
-        self.subscriber = rospy.Subscriber("ring_pose", Pose, self.new_detection)
+        self.subscriber = rospy.Subscriber("ring_pose", PoseColor, self.new_detection)
         self.buffer = []  # buffer to catch poses from ring_pose topic
         self.publisher = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
         
@@ -37,10 +38,11 @@ class marker_organizer():
             self.buffer.append(pose)
 
     def check_rings(self):
-        for pose in self.buffer:
+        for posee in self.buffer:
+            pose = posee.pose
             noMatch = 0
 
-            for i, (ring, occurances) in enumerate(self.rings):
+            for i, (ring, occurances, colors) in enumerate(self.rings):
                 numMatches = 0
                 if ring.position.x - self.distThresh <= pose.position.x \
                         <= ring.position.x + self.distThresh:
@@ -56,27 +58,34 @@ class marker_organizer():
                     ring.position.y = (ring.position.y * occurances
                                            + pose.position.y) / (occurances + 1)
                     occurances += 1
-                    self.rings[i] = (ring, occurances)
+                    if posee.color in colors:
+                        colors[posee.color] += 1
+                    else:
+                        colors[posee.color] = 1
+                    self.rings[i] = (ring, occurances, colors)
 
                 else:  # no match x,y -> new ring
                     noMatch += 1
                     print("no match")
 
             if noMatch == len(self.rings):
-                self.rings.append((pose, 1))
+                self.rings.append((pose, 1, {str(posee.color): 1}))
         self.buffer = []
 
     def update_markers(self):
         self.marker_array.markers = []
         self.marker_num = 1
-        for (pose, occurances) in self.rings:
+        for (pose, occurances, colors) in self.rings:
             if occurances > 1:
-                self.marker_array.markers.append(self.make_marker(pose, occurances))
+                self.marker_array.markers.append(self.make_marker(pose, occurances, colors))
                 self.marker_num += 1
         self.publisher.publish(self.marker_array)
         print("Markers updated")
 
-    def make_marker(self, pose, occurances):
+    def make_marker(self, pose, occurances, colors):
+        color = max(colors.items(), key=operator.itemgetter(1))[0] #get key of color that occures most
+        col_dict = {"white": ColorRGBA(255/255, 255/255, 255/255, 1), "black": ColorRGBA(0, 0, 0, 1), "red": ColorRGBA(255/255, 0, 0, 1), 
+                    "blue": ColorRGBA(0,0,255/255,1), "green": ColorRGBA(0,255/255,0,1), "yellow": ColorRGBA(247/255,202/255,24/255,1)}
         marker = Marker()
         marker.header.stamp = rospy.Time(0)
         marker.header.frame_id = 'map'
@@ -88,7 +97,8 @@ class marker_organizer():
         marker.lifetime = rospy.Duration.from_sec(0)
         marker.id = self.marker_num
         marker.scale = Vector3(0.3,0.3,0.3)
-        marker.color = ColorRGBA(0, 1, 0, 1) if occurances >= self.occuranceThresh else ColorRGBA(1, 0, 0, 1)
+        marker.color = col_dict[color]
+        
         return marker
 
 

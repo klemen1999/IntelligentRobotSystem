@@ -12,6 +12,7 @@ import pickle
 
 import rospy
 from ring_detection.msg import Int2dArray, IntList
+from color_recognition.msg import PoseColor
 
 
 
@@ -26,6 +27,8 @@ class RandomForest:
         filename = '/color_model_RF.sav'
         self.loaded_model = pickle.load(open(base_dir + filename, 'rb'))
 
+        self.pose_color_ring_pub = rospy.Publisher('ring_pose', PoseColor, queue_size=1000)
+
         
     
     def ring_callback(self, data):
@@ -35,7 +38,12 @@ class RandomForest:
             np_colors[i] = colors[i].elements
         rgb_hsv_data = self.getImageData(np_colors)
         col = self.predict(rgb_hsv_data)
-        print(col)
+        
+        msg = PoseColor()
+        msg.pose = data.pose
+        msg.color = col
+        #publish to markers (pose and color)
+        self.pose_color_ring_pub.publish(msg)
 
     def predict(self, colors):
         result = self.loaded_model.predict(colors)
