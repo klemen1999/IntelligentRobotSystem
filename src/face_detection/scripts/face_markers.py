@@ -4,7 +4,7 @@ import rospy
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose
 from std_msgs.msg import ColorRGBA
-from face_detection.msg import ImageStatus
+from face_detection.msg import ImageStatus, FacePoses
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 
@@ -13,7 +13,7 @@ class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('face_markers_node')
-        self.subscriber = rospy.Subscriber("face_pose", Pose, self.new_detection)
+        self.subscriber = rospy.Subscriber("face_pose", FacePoses, self.new_detection)
         self.buffer = []  # buffer to catch poses from face_pose topic
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
@@ -25,7 +25,9 @@ class marker_organizer():
         self.distThresh = distThresh
         self.robot_position = []
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
-        self.start = False
+        self.start = True # TODO: CHANGE TO FALSE
+
+        self.testMarkers = rospy.Publisher('test_markers', MarkerArray, queue_size=1000)
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
@@ -34,8 +36,28 @@ class marker_organizer():
 
     def new_detection(self, pose):
         if self.start:
+            self.testing(pose)
             self.update_markers()
-            self.buffer.append(pose)
+            self.buffer.append(pose.poseMiddle)
+
+    def testing(self, poses):
+        arr = MarkerArray()
+        for i in range(2):
+            marker = Marker()
+            marker.header.stamp = rospy.Time(0)
+            marker.header.frame_id = 'map'
+            marker.pose = poses.poseLeft if i==0 else poses.poseRight
+            marker.type = Marker.SPHERE
+            marker.action = Marker.ADD
+            marker.frame_locked = False
+            marker.lifetime = rospy.Duration.from_sec(0)
+            marker.id = i
+            marker.scale = Vector3(0.1,0.1,0.1)
+            marker.color = ColorRGBA(1, 0, 0, 1)
+            arr.markers.append(marker)
+
+        self.testMarkers.publish(arr)
+
 
     def img_in_the_middle(self, x, y):
         first_x1 = 0.2

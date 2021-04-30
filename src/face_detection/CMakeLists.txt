@@ -17,11 +17,13 @@ find_package( OpenCV REQUIRED )
 add_message_files(
   FILES
   ImageStatus.msg
+  FacePoses.msg
  )
 
 generate_messages(
 	DEPENDENCIES
 	std_msgs
+	geometry_msgs
  )
 
 catkin_package()
