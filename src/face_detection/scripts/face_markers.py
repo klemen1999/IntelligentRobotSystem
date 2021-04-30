@@ -5,6 +5,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from face_detection.msg import ImageStatus, FacePoses
+from face_detection.srv import FaceNormal
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 import numpy as np
@@ -16,22 +17,23 @@ class marker_organizer():
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('face_markers_node')
         self.subscriber = rospy.Subscriber("face_pose", FacePoses, self.new_detection)
-        self.buffer = []  # buffer to catch poses from face_pose topic
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
         self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
+        self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
+        self.normal_srv = rospy.Service("face_normal", FaceNormal, self.get_normal)
+        self.buffer = []  # buffer to catch poses from face_pose topic
         self.faces = []
         self.marker_array = MarkerArray()
         self.markerID = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
-        self.robot_position = []
-        self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
+
         self.start = False # TODO: CHANGE TO FALSE
 
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
-            print("Startin with detection")
+            print("Starting with detection")
             self.start = True
 
     def new_detection(self, pose):
@@ -80,6 +82,7 @@ class marker_organizer():
                     noMatch += 1
 
             if noMatch == len(self.faces):  # definetly new face
+                print("Possible new face")
                 status_message = ImageStatus()
                 status_message.status = "NEW_FACE"
                 newId = self.markerID
@@ -112,6 +115,13 @@ class marker_organizer():
             else ColorRGBA(1, 0, 0, 1)
         return marker
 
+    def get_normal(self, request):
+        print(request)
+        for (_, normal, _, markerID) in self.faces:
+            if request.markerID == markerID:
+                msg = FaceNormal()
+                msg.unitNormal = np.copy(normal)
+                return msg
 
 def main():
     marker_org = marker_organizer(5, 0.5)
