@@ -2,11 +2,12 @@
 
 import rospy
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import PointStamped, Vector3, Pose
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from face_detection.msg import ImageStatus, FacePoses
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
+import numpy as np
 
 
 class marker_organizer():
@@ -28,6 +29,7 @@ class marker_organizer():
         self.start = True # TODO: CHANGE TO FALSE
 
         self.testMarkers = rospy.Publisher('test_markers', MarkerArray, queue_size=1000)
+        self.unitN = None
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
@@ -40,21 +42,64 @@ class marker_organizer():
             self.update_markers()
             self.buffer.append(pose.poseMiddle)
 
-    def testing(self, poses):
+    def testing(self, pose):
+        length = 1
+        middlePoint = np.array([(pose.poseRight.position.x+pose.poseLeft.position.x)/2, (pose.poseRight.position.y+pose.poseLeft.position.y)/2])
+        vecLeftRight = np.array([pose.poseRight.position.x-pose.poseLeft.position.x, pose.poseRight.position.y-pose.poseLeft.position.y])
+        normal = np.array([vecLeftRight[1], -vecLeftRight[0]])
+        unitNormal = normal / np.linalg.norm(normal)
+        if np.isnan(unitNormal).any():
+            print("test")
+            return
+        if self.unitN is None:
+            self.unitN = unitNormal
+            self.num = 1
+        else:
+            self.unitN = (self.unitN*self.num + unitNormal) / (self.num+1)
+            self.num += 1
+
+        endPoint = middlePoint + self.unitN*length
+
+        a = Point()
+        a.x = middlePoint[0]
+        a.y = middlePoint[1]
+        a.z = 0.1
+
+        b = Point()
+        b.x = endPoint[0]
+        b.y = endPoint[1]
+        b.z = 0.1
+
         arr = MarkerArray()
-        for i in range(2):
-            marker = Marker()
-            marker.header.stamp = rospy.Time(0)
-            marker.header.frame_id = 'map'
-            marker.pose = poses.poseLeft if i==0 else poses.poseRight
-            marker.type = Marker.SPHERE
-            marker.action = Marker.ADD
-            marker.frame_locked = False
-            marker.lifetime = rospy.Duration.from_sec(0)
-            marker.id = i
-            marker.scale = Vector3(0.1,0.1,0.1)
-            marker.color = ColorRGBA(1, 0, 0, 1)
-            arr.markers.append(marker)
+        m = Marker()
+        m.action = Marker.ADD
+        m.header.frame_id = 'map'
+        m.header.stamp = rospy.Time.now()
+        m.id = 0
+        m.type = Marker.ARROW
+        m.pose.orientation.y = 0
+        m.pose.orientation.w = 1
+        m.color = ColorRGBA(0, 1, 0, 1)
+        m.scale = Vector3(0.1,0.1,0.1)
+        m.points = [a, b]
+        arr.markers.append(m)
+        # midP = Pose()
+        # midP.position.x = middlePoint[0]
+        # midP.position.y = middlePoint[1]
+        # midP.position.z = pose.poseLeft.position.z
+        # for i in range(3):
+        #     marker = Marker()
+        #     marker.header.stamp = rospy.Time(0)
+        #     marker.header.frame_id = 'map'
+        #     marker.pose = pose.poseLeft if i == 0 else (pose.poseRight if i==1 else midP)
+        #     marker.type = Marker.SPHERE
+        #     marker.action = Marker.ADD
+        #     marker.frame_locked = False
+        #     marker.lifetime = rospy.Duration.from_sec(0)
+        #     marker.id = i
+        #     marker.scale = Vector3(0.1, 0.1, 0.1)
+        #     marker.color = ColorRGBA(1, 0, 0, 1) if i<2 else ColorRGBA(0,1,0,1)
+        #     arr.markers.append(marker)
 
         self.testMarkers.publish(arr)
 
