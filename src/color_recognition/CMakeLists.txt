@@ -8,15 +8,18 @@ find_package(catkin REQUIRED
     sensor_msgs
     dynamic_reconfigure
     message_generation
+    geometry_msgs
 )
 
 add_message_files(
   FILES
+  PoseColor.msg
  )
 
 generate_messages(
 	DEPENDENCIES
 	std_msgs
+	geometry_msgs
 )
 
 catkin_package(

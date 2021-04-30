@@ -75,8 +75,8 @@ class The_Ring:
         pose.position.y = point_world.point.y
         pose.position.z = point_world.point.z
 
-        self.pose_pub.publish(pose)
-    
+        #self.pose_pub.publish(pose)
+        return pose
     """
     less than 1 = inside ellipse
     more than 1 = ouside ellipse
@@ -152,8 +152,8 @@ class The_Ring:
 
 
             # drawing the ellipses on the image
-            cv2.ellipse(cv_image, e1, (0, 255, 0), 2)
-            cv2.ellipse(cv_image, e2, (0, 255, 0), 2)
+            #cv2.ellipse(cv_image, e1, (0, 255, 0), 2)
+            #cv2.ellipse(cv_image, e2, (0, 255, 0), 2)
 
             size = (e1[1][0]+e1[1][1])/2
             center = (e1[0][1], e1[0][0])
@@ -179,7 +179,7 @@ class The_Ring:
             depth_time = data.header.stamp
 
             #self.get_pose(e1, float(np.nanmean(depp[x_min:x_max,y_min:y_max])), depth_time)
-            self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
+            pose = self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
 
             color_list = []
             msg_list = Int2dArray()
@@ -192,7 +192,7 @@ class The_Ring:
                         col = IntList()
                         col.elements = [cv_image[i][j][2], cv_image[i][j][1], cv_image[i][j][0]]
                         msg_list.lists.append(col)
-
+            msg_list.pose = pose
             self.ring_color_pub.publish(msg_list)
         if len(candidates)>0:
             cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])

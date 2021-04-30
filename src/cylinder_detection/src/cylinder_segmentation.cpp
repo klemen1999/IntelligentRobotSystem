@@ -17,15 +17,20 @@
 #include "tf2_ros/transform_listener.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.h"
 #include "geometry_msgs/PointStamped.h"
+#include "geometry_msgs/Pose.h"
+#include<cstdlib> //For rand() and srand()
+#include <ring_detection/Int2dArray.h>
+#include <ring_detection/IntList.h>
 
 ros::Publisher pubx;
 ros::Publisher puby;
 ros::Publisher pubm;
+ros::Publisher pub_cylinder_pose;
 
 tf2_ros::Buffer tf2_buffer;
 
-typedef pcl::PointXYZ PointT;
-
+//typedef pcl::PointXYZ PointT;
+typedef pcl::PointXYZRGB PointT;
 
 void 
 cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
@@ -137,6 +142,31 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
           std::cerr << "centroid of the cylindrical component: " << centroid[0] << " " <<  centroid[1] << " " <<   centroid[2] << " " <<   centroid[3] << std::endl;
     
     ROS_INFO("num of points: %lu", cloud_cylinder->points.size () );
+
+    //ROS_INFO("colors r: %d, g: %d, b: %d", cloud_cylinder->points[10000].r,cloud_cylinder->points[10000].g,cloud_cylinder->points[10000].b);
+    
+    ring_detection::Int2dArray msg;
+    std::vector<ring_detection::IntList> lists(1000);
+    
+    int counter = 0;
+    int s = cloud_cylinder->points.size ();
+    // get 1000 random points' colors
+    for (counter = 0; counter < 1000; counter++){
+      int ind = rand() % s;
+      int rgb [3] = { cloud_cylinder->points[ind].r, cloud_cylinder->points[ind].g, cloud_cylinder->points[ind].b };
+      ring_detection::IntList list;
+      std::vector<int> rgb_arr(3);
+      rgb_arr[0] = cloud_cylinder->points[ind].r;
+      rgb_arr[1] = cloud_cylinder->points[ind].g;
+      rgb_arr[2] = cloud_cylinder->points[ind].b;
+      list.elements = rgb_arr;
+      // put array into our 2d array custom msg
+      lists[counter] = list;
+    }
+    // custom msg
+    msg.lists = lists;
+
+
 	  //Create a point in the "camera_rgb_optical_frame"
           geometry_msgs::PointStamped point_camera;
           geometry_msgs::PointStamped point_map;
@@ -169,6 +199,16 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
           //std::cerr << tss ;
 
           tf2::doTransform(point_camera, point_map, tss);
+          
+          // get marker pose
+          geometry_msgs::Pose pose_marker;
+          pose_marker.position.x = point_map.point.x;
+          pose_marker.position.y = point_map.point.y;
+          pose_marker.position.z = point_map.point.z;
+          // put pose into custom msg
+          msg.pose = pose_marker;
+          // publish marker pose with 1000 RGB color info of points
+          pub_cylinder_pose.publish(msg);
 
 	      std::cerr << "point_camera: " << point_camera.point.x << " " <<  point_camera.point.y << " " <<  point_camera.point.z << std::endl;
 
@@ -202,7 +242,7 @@ cloud_cb (const pcl::PCLPointCloud2ConstPtr& cloud_blob)
 
 	      marker.lifetime = ros::Duration();
 
-	      pubm.publish (marker);
+	      //pubm.publish (marker);
 
 	      pcl::PCLPointCloud2 outcloud_cylinder;
           pcl::toPCLPointCloud2 (*cloud_cylinder, outcloud_cylinder);
@@ -231,6 +271,8 @@ main (int argc, char** argv)
   puby = nh.advertise<pcl::PCLPointCloud2> ("cylinder", 1);
 
   pubm = nh.advertise<visualization_msgs::Marker>("detected_cylinder",1);
+
+  pub_cylinder_pose = nh.advertise<ring_detection::Int2dArray>("cylinder_color_pose",1);
 
   // Spin
   ros::spin ();

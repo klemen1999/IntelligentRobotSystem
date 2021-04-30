@@ -12,12 +12,12 @@ import operator
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
-        rospy.init_node('ring_markers_node')
-        self.subscriber = rospy.Subscriber("ring_pose", PoseColor, self.new_detection)
-        self.buffer = []  # buffer to catch poses from ring_pose topic
-        self.publisher = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
+        rospy.init_node('cylinder_markers_node')
+        self.subscriber = rospy.Subscriber("cylinder_pose", PoseColor, self.new_detection)
+        self.buffer = []  # buffer to catch poses from cylinder_pose topic
+        self.publisher = rospy.Publisher('cylinder_markers', MarkerArray, queue_size=1000)
         
-        self.rings = []
+        self.cylinders = []
         self.marker_array = MarkerArray()
         self.marker_num = 1
         self.occuranceThresh = occuranceThresh
@@ -37,45 +37,45 @@ class marker_organizer():
             self.update_markers()
             self.buffer.append(pose)
 
-    def check_rings(self):
+    def check_cylinders(self):
         for posee in self.buffer:
             pose = posee.pose
             noMatch = 0
 
-            for i, (ring, occurances, colors) in enumerate(self.rings):
+            for i, (cylinder, occurances, colors) in enumerate(self.cylinders):
                 numMatches = 0
-                if ring.position.x - self.distThresh <= pose.position.x \
-                        <= ring.position.x + self.distThresh:
+                if cylinder.position.x - self.distThresh <= pose.position.x \
+                        <= cylinder.position.x + self.distThresh:
                     numMatches += 1
-                if ring.position.y - self.distThresh <= pose.position.y \
-                        <= ring.position.y + self.distThresh:
+                if cylinder.position.y - self.distThresh <= pose.position.y \
+                        <= cylinder.position.y + self.distThresh:
                     numMatches += 1
                 # zna bit problem če so dva kroga na isti steni ampak na drugi strani
 
                 if numMatches == 2:
-                    ring.position.x = (ring.position.x * occurances
+                    cylinder.position.x = (cylinder.position.x * occurances
                                            + pose.position.x) / (occurances + 1)
-                    ring.position.y = (ring.position.y * occurances
+                    cylinder.position.y = (cylinder.position.y * occurances
                                            + pose.position.y) / (occurances + 1)
                     occurances += 1
                     if posee.color in colors:
                         colors[posee.color] += 1
                     else:
                         colors[posee.color] = 1
-                    self.rings[i] = (ring, occurances, colors)
+                    self.cylinders[i] = (cylinder, occurances, colors)
 
-                else:  # no match x,y -> new ring
+                else:  # no match x,y -> new cylinder
                     noMatch += 1
                     print("no match")
 
-            if noMatch == len(self.rings):
-                self.rings.append((pose, 1, {str(posee.color): 1}))
+            if noMatch == len(self.cylinders):
+                self.cylinders.append((pose, 1, {str(posee.color): 1}))
         self.buffer = []
 
     def update_markers(self):
         self.marker_array.markers = []
         self.marker_num = 1
-        for (pose, occurances, colors) in self.rings:
+        for (pose, occurances, colors) in self.cylinders:
             if occurances > 1:
                 self.marker_array.markers.append(self.make_marker(pose, occurances, colors))
                 self.marker_num += 1
@@ -90,13 +90,13 @@ class marker_organizer():
         marker.header.stamp = rospy.Time(0)
         marker.header.frame_id = 'map'
         marker.pose = pose
-        marker.type = Marker.TEXT_VIEW_FACING
+        marker.type = Marker.CYLINDER
         marker.text = str(occurances)
         marker.action = Marker.ADD
         marker.frame_locked = False
         marker.lifetime = rospy.Duration.from_sec(0)
         marker.id = self.marker_num
-        marker.scale = Vector3(0.3,0.3,0.3)
+        marker.scale = Vector3(0.1,0.1,0.1)
         marker.color = col_dict[color]
         
         return marker
@@ -106,7 +106,7 @@ def main():
     marker_org = marker_organizer(10, 0.5)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
-        marker_org.check_rings()
+        marker_org.check_cylinders()
 
         rate.sleep()
 
