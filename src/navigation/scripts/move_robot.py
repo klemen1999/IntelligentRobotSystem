@@ -13,7 +13,7 @@ from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PointStamped, PoseStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
-from face_detection.srv import FaceNormal
+from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
 from std_msgs.msg import ColorRGBA
 from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
@@ -32,6 +32,7 @@ class move_controller():
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		# face subscribers
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_recieved)
+		rospy.wait_for_service("face_normal")
 		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
@@ -45,6 +46,7 @@ class move_controller():
 		# calibration status publisher
 		self.calibration_pub = rospy.Publisher("calibration_status", CalibrationMsg, queue_size=10)
 		# service to check if goal is reachable
+		rospy.wait_for_service("/move_base/make_plan")
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
 
 		self.distance_to_face = 0.45
@@ -155,7 +157,7 @@ class move_controller():
 	def check_face_approach(self):
 		try:
 			if self.face_marker_array != None and self.face_marker_array.markers != None and \
-					len(self.face_marker_array.markers) > 0:
+				len(self.face_marker_array.markers) > 0:
 				self.move_to_faces()
 		except Exception as e:
 			print("No faces detected yet")
@@ -165,23 +167,25 @@ class move_controller():
 			# check if you already visited the marker
 			if marker.id in self.alreadyVisitedMarkers:
 				continue
-			request = FaceNormal()
-			request.markerID = int(marker.id)
-			normalVec = self.face_normal_client(request)
+			# requesting normal vec of current face marker
+			request = FaceNormalRequest()
+			request.markerID = marker.id
+			response = self.face_normal_client(request)
+			normalVec = [response.unitNormal[0], response.unitNormal[1]]
+			# calculate pose for approach
 			pose = self.approach_transform(marker.pose, normalVec)
-			markerToFace = self.make_marker(pose)
-			self.goal_publisher.publish(markerToFace)
 			if self.check_if_reachable(pose):
+				# adding marker to see next approach
+				markerToFace = self.make_marker(pose)
+				self.goal_publisher.publish(markerToFace)
 				print("Moving to approach the face")
 				self.move(pose)
-				soundMsg = RobotSpeakRequest()
-				soundMsg.message = "Hello"
-				print("Sending Hello sound")
-				self.sound_pub.publish(soundMsg)
-				rospy.sleep(1)
+				print("Saying hello to face")
+				self.speak("Hello")
+
 				self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 			else:
-				print("Can't reach approach to face goal")
+				print("Can't reach the face")
 
 
 	# def approach_transform(self, curr_pose, target_pose):
@@ -205,9 +209,9 @@ class move_controller():
 
 	def approach_transform(self, markerPose, normalVec):
 		pose = Pose()
-		pose.position = Vector3(markerPose.position.x+normalVec[0], markerPose.position.y+normalVec[0], 0)
-		q = self.look_at(pose, markerPose)
-		pose = Pose(v, q)
+		normalVec = [x*self.distance_to_face for x in normalVec] # multiply the normal vector to get right distance to face
+		pose.position = Vector3(markerPose.position.x+normalVec[0], markerPose.position.y+normalVec[1], 0)
+		pose.orientation = self.look_at(pose, markerPose)
 		return pose
 
 	def check_if_reachable(self, targetPose):
@@ -231,6 +235,12 @@ class move_controller():
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		return q
+
+	def speak(self, message):
+		soundMsg = RobotSpeakRequest()
+		soundMsg.message = message
+		self.sound_pub.publish(soundMsg)
+		rospy.sleep(1)
 
 	def ghetto_move(self):
 		goal = MoveBaseGoal()
@@ -263,7 +273,7 @@ def main():
 	print("Getting autoNavigator goals")
 	autoNavigator = AutoNav(25)
 	points = autoNavigator.get_mapGoals()
-	mover = move_controller(points[3:], False)  #TODO: change points[3:] to points
+	mover = move_controller(points[1:], False)
 	print("Calibrating")
 	mover.calibrate()
 	print("Going to goals")

@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
 	nav_msgs
 	std_msgs
 	geometry_msgs
+	message_generation
 )
 
 find_package( OpenCV REQUIRED )
@@ -23,7 +24,7 @@ add_message_files(
 add_service_files(
   FILES
   FaceNormal.srv
-)
+ )
 
 generate_messages(
 	DEPENDENCIES
@@ -31,7 +32,9 @@ generate_messages(
 	geometry_msgs
  )
 
-catkin_package()
+catkin_package(
+	CATKIN_DEPENDS message_runtime std_msgs
+ )
 
 #include_directories(include ${catkin_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
 #add_executable(map_goals src/map_goals.cpp)

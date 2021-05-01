@@ -5,7 +5,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from face_detection.msg import ImageStatus, FacePoses
-from face_detection.srv import FaceNormal
+from face_detection.srv import FaceNormal, FaceNormalResponse
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 import numpy as np
@@ -27,8 +27,7 @@ class marker_organizer():
         self.markerID = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
-
-        self.start = False # TODO: CHANGE TO FALSE
+        self.start = False  # TODO: CHANGE TO FALSE
 
 
     def calibration_callback(self, msg):
@@ -116,10 +115,10 @@ class marker_organizer():
         return marker
 
     def get_normal(self, request):
-        print(request)
+        print("Got unitNormal request for marker id:", request.markerID)
         for (_, normal, _, markerID) in self.faces:
             if request.markerID == markerID:
-                msg = FaceNormal()
+                msg = FaceNormalResponse()
                 msg.unitNormal = np.copy(normal)
                 return msg
 
@@ -128,7 +127,6 @@ def main():
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_faces()
-
         rate.sleep()
 
 
