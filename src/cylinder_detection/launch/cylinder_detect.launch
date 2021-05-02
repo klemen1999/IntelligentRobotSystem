@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+    <node pkg="cylinder_detection" type="cylinder_segmentation" name="cylinder_segmentation" output="screen">
+        <remap from="input" to="/camera/depth/points"/>
+    </node>
+
+    <node pkg="color_recognition" type="randomForest.py" name="random_forest"/>
+
+    <node pkg="cylinder_detection" type="cylinder_markers.py" name="cylinder_markers" />
+
+</launch>

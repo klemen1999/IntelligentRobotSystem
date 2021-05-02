@@ -34,6 +34,8 @@ class move_controller():
 		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_recieved)
 		rospy.wait_for_service("face_normal")
 		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+		# Cylinder subscriber
+		self.cylinder_sub = rospy.Subscriber('cylinder_markers', MarkerArray ,self.cylinder_marker_received)
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
 		# move base client
@@ -154,6 +156,9 @@ class move_controller():
 	def face_marker_recieved(self, msg):
 		self.face_marker_array = msg
 
+	def cylinder_marker_received(self, msg):
+		self.cylinder_markers = msg
+
 	def check_face_approach(self):
 		try:
 			if self.face_marker_array != None and self.face_marker_array.markers != None and \
@@ -161,6 +166,15 @@ class move_controller():
 				self.move_to_faces()
 		except Exception as e:
 			print("No faces detected yet")
+
+	def check_cylinder_approach(self):
+		try:
+			if self.cylinder_markers != None and self.cylinder_markers.markers != None and \
+				len(self.cylinder_markers.markers) > 0:
+				self.move_to_cylinders()
+		except Exception as e:
+			print("No faces detected yet")
+
 
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
@@ -186,6 +200,32 @@ class move_controller():
 				self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
 			else:
 				print("Can't reach the face")
+
+	def move_to_cylinders(self):
+		for marker in self.cylinder_markers.markers:
+			# check if you already visited the marker
+			if marker.id in self.alreadyVisitedMarkers:
+				continue
+			# requesting normal vec of current face marker
+			request = FaceNormalRequest()
+			request.markerID = marker.id
+			response = self.face_normal_client(request)
+			normalVec = [response.unitNormal[0], response.unitNormal[1]]
+			# calculate pose for approach
+			pose = self.approach_transform(marker.pose, normalVec)
+			if self.check_if_reachable(pose):
+				# adding marker to see next approach
+				markerToFace = self.make_marker(pose)
+				self.goal_publisher.publish(markerToFace)
+				print("Moving to approach the face")
+				self.move(pose)
+				print("Saying hello to face")
+				self.speak("Hello")
+
+				self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
+			else:
+				print("Can't reach the face")
+
 
 
 	# def approach_transform(self, curr_pose, target_pose):
