@@ -22,7 +22,7 @@
 #include <cstdlib> //For rand() and srand()
 #include <color_recognition/Int2dArray.h>
 #include <color_recognition/IntList.h>
-#include <color_recognition/RingColor.h>
+#include <color_recognition/ObjectColor.h>
 #include <cylinder_detection/CylinderPoseColor.h>
 
 ros::Publisher pubx;
@@ -147,7 +147,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
 
     //ROS_INFO("colors r: %d, g: %d, b: %d", cloud_cylinder->points[10000].r,cloud_cylinder->points[10000].g,cloud_cylinder->points[10000].b);
 
-    color_recognition::RingColor msg;
+    color_recognition::ObjectColor msg;
     std::vector<color_recognition::IntList> lists(1000);
 
     int counter = 0;
@@ -291,7 +291,7 @@ int main(int argc, char **argv)
   puby = nh.advertise<pcl::PCLPointCloud2>("cylinder", 1);
 
   cylinder_color_pub = nh.advertise<cylinder_detection::CylinderPoseColor>("cylinder_pose_color", 100);
-  cylinder_color_client = nh.serviceClient<color_recognition::RingColor>("cylinder_color");
+  cylinder_color_client = nh.serviceClient<color_recognition::ObjectColor>("cylinder_color");
   // Spin
   ROS_INFO("Node initilized");
   ros::spin();

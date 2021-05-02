@@ -118,11 +118,12 @@ class marker_organizer():
 
     def get_vector(self, request):
         print("Got unitVector request for marker id:", request.markerID)
-        for (_, vector, _, colors, markerID) in self.rings:
+        for (_, vector, occurances, colors, markerID) in self.rings:
             if request.markerID == markerID:
                 msg = RingVectorResponse()
                 msg.unitVector = np.copy(vector)
                 msg.color = max(colors.items(), key=operator.itemgetter(1))[0]
+                msg.viable = True if occurances >= self.occuranceThresh else False
                 return msg
 
 

@@ -19,7 +19,7 @@ add_message_files(
 
 add_service_files(
   FILES
-  RingColor.srv
+  ObjectColor.srv
  )
 
 generate_messages(

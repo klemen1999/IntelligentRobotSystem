@@ -116,10 +116,11 @@ class marker_organizer():
 
     def get_normal(self, request):
         print("Got unitNormal request for marker id:", request.markerID)
-        for (_, normal, _, markerID) in self.faces:
+        for (_, normal, occurances, markerID) in self.faces:
             if request.markerID == markerID:
                 msg = FaceNormalResponse()
                 msg.unitNormal = np.copy(normal)
+                msg.viable = True if occurances >= self.occuranceThresh else False
                 return msg
 
 def main():

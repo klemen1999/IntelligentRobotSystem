@@ -13,7 +13,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import math
 from color_recognition.msg import Int2dArray, IntList
-from color_recognition.srv import RingColor, RingColorRequest
+from color_recognition.srv import ObjectColor, ObjectColorRequest
 from ring_detection.msg import RingPoseColor
 
 class The_Ring:
@@ -44,7 +44,7 @@ class The_Ring:
 
         # service to predict color
         rospy.wait_for_service("ring_color")
-        self.ring_color_client = rospy.ServiceProxy("ring_color", RingColor)
+        self.ring_color_client = rospy.ServiceProxy("ring_color", ObjectColor)
 
         self.ring_color_pub = rospy.Publisher('ring_pose_color', RingPoseColor, queue_size=100)
 
@@ -271,7 +271,7 @@ class The_Ring:
                         col = IntList()
                         col.elements = [cv_image[i][j][2], cv_image[i][j][1], cv_image[i][j][0]]
                         msg_list.lists.append(col)
-            request = RingColorRequest()
+            request = ObjectColorRequest()
             request.data = msg_list
             response = self.ring_color_client(request)
             color = response.color
