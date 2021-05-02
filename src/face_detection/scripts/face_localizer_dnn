@@ -215,6 +215,7 @@ class face_localizer_dnn:
                     message.poseRight = poseRight
                     self.pose_pub.publish(message)
 
+    # returns true if there is no Nan values
     def checkNan(self, pose):
         if math.isnan(pose.position.x) or math.isnan(pose.position.y) \
                 or math.isnan(pose.position.z):

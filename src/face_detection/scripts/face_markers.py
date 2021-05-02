@@ -104,7 +104,7 @@ class marker_organizer():
         marker.header.frame_id = 'map'
         marker.pose = pose
         marker.type = Marker.TEXT_VIEW_FACING
-        marker.text = str(occurances)
+        marker.text = "I:"+str(occurances)
         marker.action = Marker.ADD
         marker.frame_locked = False
         marker.lifetime = rospy.Duration.from_sec(0)

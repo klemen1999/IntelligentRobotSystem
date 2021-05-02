@@ -19,6 +19,7 @@ from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 from nav_msgs.srv import GetPlan
 from auto_goals import AutoNav
+from ring_detection.srv import RingVector, RingVectorRequest
 
 
 class move_controller():
@@ -30,10 +31,16 @@ class move_controller():
 		# info about the robot position
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
-		# face subscribers
-		self.marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_recieved)
+		# Face stuff
+		self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
 		rospy.wait_for_service("face_normal")
 		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+		self.visitedFaces = []
+		# Ring stuff
+		self.ring_marker_sub = rospy.Subscriber("ring_markers", MarkerArray, self.ring_marker_received)
+		rospy.wait_for_service("ring_vector")
+		self.ring_vector_client = rospy.ServiceProxy("ring_vector", RingVector)
+		self.visitedRings = []
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
 		# move base client
@@ -50,7 +57,8 @@ class move_controller():
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
 
 		self.distance_to_face = 0.45
-		self.alreadyVisitedMarkers = []
+		self.distance_to_ring = 0.45
+
 
 	def print_status(self, data):
 		if len(data.status_list) < 1:
@@ -90,7 +98,11 @@ class move_controller():
 			print("Checking for faces to approach")
 			self.check_face_approach()
 
-			# if len(self.alreadyVisitedMarkers) == 3:
+			# check for new rings to approach
+			print("Checking for rings to approach")
+			self.check_ring_approach()
+
+			# if len(self.visitedFaces) == 3:
 			# 	print("Found 3 faces. I'm gonna stop now.")
 			# 	return
 
@@ -110,7 +122,7 @@ class move_controller():
 		threshold = 0.05
 		rate = rospy.Rate(100)
 
-		vel_msg = self.init_vel_msg_for_rotation()
+		vel_msg = self.init_vel_msg()
 
 		current_rotation = self.current_rotation
 		rotated = 0
@@ -142,7 +154,7 @@ class move_controller():
 	def deg_to_radian(self, deg):
 		return deg * 2 * pi / 360
 
-	def init_vel_msg_for_rotation(self):
+	def init_vel_msg(self):
 		vel_msg = Twist()
 		vel_msg.linear.x = 0
 		vel_msg.linear.y = 0
@@ -151,7 +163,7 @@ class move_controller():
 		vel_msg.angular.y = 0
 		return vel_msg
 
-	def face_marker_recieved(self, msg):
+	def face_marker_received(self, msg):
 		self.face_marker_array = msg
 
 	def check_face_approach(self):
@@ -165,7 +177,7 @@ class move_controller():
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
 			# check if you already visited the marker
-			if marker.id in self.alreadyVisitedMarkers:
+			if marker.id in self.visitedFaces:
 				continue
 			# requesting normal vec of current face marker
 			request = FaceNormalRequest()
@@ -173,7 +185,7 @@ class move_controller():
 			response = self.face_normal_client(request)
 			normalVec = [response.unitNormal[0], response.unitNormal[1]]
 			# calculate pose for approach
-			pose = self.approach_transform(marker.pose, normalVec)
+			pose = self.approach_transform(marker.pose, normalVec, self.distance_to_face)
 			if self.check_if_reachable(pose):
 				# adding marker to see next approach
 				markerToFace = self.make_marker(pose)
@@ -181,11 +193,65 @@ class move_controller():
 				print("Moving to approach the face")
 				self.move(pose)
 				print("Saying hello to face")
-				self.speak("Hello")
+				self.speak("Hello face")
 
-				self.alreadyVisitedMarkers.append(marker.id)  # add marker id you already visited
+				self.visitedFaces.append(marker.id)  # add marker id you already visited
 			else:
 				print("Can't reach the face")
+
+	def ring_marker_received(self, msg):
+		self.ring_marker_array = msg
+
+	def check_ring_approach(self):
+		try:
+			if self.ring_marker_array != None and self.ring_marker_array.markers != None and \
+				len(self.ring_marker_array.markers) > 0:
+				self.move_to_rings()
+		except Exception as e:
+			print("No rings detected yet")
+
+	def move_to_rings(self):
+		for marker in self.ring_marker_array.markers:
+			# check if you already visited the marker
+			if marker.id in self.visitedRings:
+				continue
+			# requesting vector of current ring marker
+			request = RingVectorRequest()
+			request.markerID = marker.id
+			response = self.ring_vector_client(request)
+			color = response.color
+			vector = [response.unitVector[0], response.unitVector[1]]
+			# calculate pose for approach (try original and negative vector)
+			pose1 = self.approach_transform(marker.pose, vector, self.distance_to_ring)
+			vectorNegative = [-x for x in vector]
+			pose2 = self.approach_transform(marker.pose, vectorNegative, self.distance_to_ring)
+			if self.check_if_reachable(pose1):
+				pose = pose1
+			elif self.check_if_reachable(pose2):
+				pose = pose2
+			else:
+				print("Can't reach the ring")
+				continue
+			# adding marker to see next approach
+			markerToFace = self.make_marker(pose)
+			self.goal_publisher.publish(markerToFace)
+			print("Moving to approach the", color, "ring")
+			self.move(pose)
+			self.close_approach_ring(True)
+			print("Now under the ring")
+			print("Saying hello to ring")
+			self.speak("Hello ring")
+			self.close_approach_ring(False)
+			self.visitedRings.append(marker.id)  # add marker id you already visited
+
+	def close_approach_ring(self, forward):
+		vel_msg = self.init_vel_msg()
+		if forward:
+			vel_msg.linear.x = self.distance_to_ring
+		else:
+			vel_msg.linear.x = -self.distance_to_ring
+		self.velocity_pub.publish(vel_msg)
+		rospy.sleep(1)
 
 
 	# def approach_transform(self, curr_pose, target_pose):
@@ -207,10 +273,10 @@ class move_controller():
 	#
 	# 	return pose
 
-	def approach_transform(self, markerPose, normalVec):
+	def approach_transform(self, markerPose, vector, scale):
 		pose = Pose()
-		normalVec = [x*self.distance_to_face for x in normalVec] # multiply the normal vector to get right distance to face
-		pose.position = Vector3(markerPose.position.x+normalVec[0], markerPose.position.y+normalVec[1], 0)
+		vector = [x*scale for x in vector] # multiply the normal vector to get right distance to face
+		pose.position = Vector3(markerPose.position.x+vector[0], markerPose.position.y+vector[1], 0)
 		pose.orientation = self.look_at(pose, markerPose)
 		return pose
 

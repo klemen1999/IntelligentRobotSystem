@@ -13,8 +13,12 @@ find_package(catkin REQUIRED
 
 add_message_files(
   FILES
-  IntList.msg
-  Int2dArray.msg
+  RingPoseColor.msg
+ )
+
+add_service_files(
+  FILES
+  RingVector.srv
  )
  
 generate_messages(
@@ -23,7 +27,7 @@ generate_messages(
 	geometry_msgs
 )
  
-catkin_package(CATKIN_DEPENDS message_runtime)
+catkin_package(CATKIN_DEPENDS message_runtime std_msgs)
 
 
 
