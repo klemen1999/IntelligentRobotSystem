@@ -1,2 +1,0 @@
-IntList[] lists
-geometry_msgs/Pose pose

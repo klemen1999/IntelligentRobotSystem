@@ -12,8 +12,9 @@ from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker, MarkerArray
 from std_msgs.msg import ColorRGBA
 import math
-from ring_detection.msg import Int2dArray, IntList
-
+from color_recognition.msg import Int2dArray, IntList
+from color_recognition.srv import RingColor, RingColorRequest
+from ring_detection.msg import RingPoseColor
 
 class The_Ring:
     def __init__(self):
@@ -41,7 +42,11 @@ class The_Ring:
         self.tf_buf = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buf)
 
-        self.ring_color_pub = rospy.Publisher('ring_color_pub', Int2dArray, queue_size=5)
+        # service to predict color
+        rospy.wait_for_service("ring_color")
+        self.ring_color_client = rospy.ServiceProxy("ring_color", RingColor)
+
+        self.ring_color_pub = rospy.Publisher('ring_pose_color', RingPoseColor, queue_size=100)
 
 
     def get_pose(self,e,dist, stamp):
@@ -76,6 +81,65 @@ class The_Ring:
         pose.position.z = point_world.point.z
 
         #self.pose_pub.publish(pose)
+        return pose
+
+
+    def get_pose2(
+            self,
+            coords,
+            dist,
+            stamp,
+    ):
+
+        # Calculate the position of the detected face
+
+        k_f = 554  # kinect focal length in pixels
+
+        (x1, x2, y1, y2) = coords
+
+        face_x = self.dims[1] / 2 - (x1 + x2) / 2.
+        face_y = self.dims[0] / 2 - (y1 + y2) / 2.
+
+        angle_to_target = np.arctan2(face_x, k_f)
+        # print(angle_to_target)
+
+        # Get the angles in the base_link relative coordinate system
+
+        (x, y) = (dist * np.cos(angle_to_target), dist
+                  * np.sin(angle_to_target))
+
+        # ## Define a stamped message for transformation - directly in "base_link"
+        # point_s = PointStamped()
+        # point_s.point.x = x
+        # point_s.point.y = y
+        # point_s.point.z = 0.3
+        # point_s.header.frame_id = "base_link"
+        # point_s.header.stamp = rospy.Time(0)
+
+        # Define a stamped message for transformation - in the "camera rgb frame"
+
+        point_s = PointStamped()
+        point_s.point.x = -y
+        point_s.point.y = 0
+        point_s.point.z = x
+        point_s.header.frame_id = 'camera_rgb_optical_frame'
+        point_s.header.stamp = stamp
+
+        # Get the point in the "map" coordinate system
+
+        try:
+            point_world = self.tf_buf.transform(point_s, 'map')
+
+            # Create a Pose object with the same position
+
+            pose = Pose()
+            pose.position.x = point_world.point.x
+            pose.position.y = point_world.point.y
+            pose.position.z = point_world.point.z
+        except Exception as e:
+            print(e)
+            pose = None
+
         return pose
     """
     less than 1 = inside ellipse
@@ -133,7 +197,7 @@ class The_Ring:
                 if dist < 5:
                     candidates.append((e1,e2))
 
-        print("Processing is done! found", len(candidates), "candidates for rings")
+        # print("Processing is done! found", len(candidates), "candidates for rings")
 
         try:
             cv_i = rospy.wait_for_message('/camera/rgb/image_raw', Image)
@@ -179,8 +243,23 @@ class The_Ring:
             depth_time = data.header.stamp
 
             #self.get_pose(e1, float(np.nanmean(depp[x_min:x_max,y_min:y_max])), depth_time)
-            pose = self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
+            # getting all the poses for marker calculations
+            poseMiddle = self.get_pose(e1, float(np.nanmedian(depp[x_min:x_max,y_min:y_max])), depth_time)
 
+            x_center = int(x_min + (x_max - x_min) / 2)
+            y_center = int(y_min + (y_max - y_min) / 2)
+
+            distanceLeft = float(np.nanmedian(depp[x_center-5:x_center+5, y_min:y_min+10]))
+            distanceRight = float(np.nanmedian(depp[x_center-5:x_center+5, y_max:y_max+10]))
+            poseLeft = self.get_pose2((y_min,y_min+5,x_min,x_min+5), distanceLeft, depth_time)
+            poseRight = self.get_pose2((y_max, y_max+5,x_min,x_min+5), distanceRight, depth_time)
+
+            if poseMiddle is None or poseLeft is None or poseRight is None or \
+                    not self.checkNan(poseMiddle) or not self.checkNan(poseLeft) or not self.checkNan(poseRight):
+                continue
+
+
+            # getting the color of the ring
             color_list = []
             msg_list = Int2dArray()
             for i in range(x_min, x_max):
@@ -192,12 +271,31 @@ class The_Ring:
                         col = IntList()
                         col.elements = [cv_image[i][j][2], cv_image[i][j][1], cv_image[i][j][0]]
                         msg_list.lists.append(col)
-            msg_list.pose = pose
-            self.ring_color_pub.publish(msg_list)
-        if len(candidates)>0:
-            cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
-            cv2.waitKey(1)
-        
+            request = RingColorRequest()
+            request.data = msg_list
+            response = self.ring_color_client(request)
+            color = response.color
+            print("Ring color:",color)
+            # createing message to send to ring_markers
+            message = RingPoseColor()
+            message.poseMiddle = poseMiddle
+            message.poseLeft = poseLeft
+            message.poseRight = poseRight
+            message.color = color
+
+            self.ring_color_pub.publish(message)
+
+        # if len(candidates)>0:
+        #     cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
+        #     cv2.waitKey(1)
+
+    # returns true if there is no Nan values
+    def checkNan(self, pose):
+        if math.isnan(pose.position.x) or math.isnan(pose.position.y) \
+                or math.isnan(pose.position.z):
+            return False
+        else:
+            return True
 
 def main():
 

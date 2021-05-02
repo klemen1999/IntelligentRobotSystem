@@ -13,7 +13,13 @@ find_package(catkin REQUIRED
 
 add_message_files(
   FILES
-  PoseColor.msg
+  Int2dArray.msg
+  IntList.msg
+ )
+
+add_service_files(
+  FILES
+  RingColor.srv
  )
 
 generate_messages(
@@ -23,7 +29,7 @@ generate_messages(
 )
 
 catkin_package(
-    CATKIN_DEPENDS message_runtime
+    CATKIN_DEPENDS message_runtime std_msgs
 )
 
 

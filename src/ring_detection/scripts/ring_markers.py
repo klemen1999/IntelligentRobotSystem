@@ -2,34 +2,38 @@
 
 import rospy
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import PointStamped, Vector3, Pose
+from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
-from color_recognition.msg import PoseColor
+from ring_detection.msg import RingPoseColor
+from ring_detection.srv import RingVector, RingVectorResponse
 import operator
+import numpy as np
 
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('ring_markers_node')
-        self.subscriber = rospy.Subscriber("ring_pose", PoseColor, self.new_detection)
-        self.buffer = []  # buffer to catch poses from ring_pose topic
+        self.subscriber = rospy.Subscriber("ring_pose_color", RingPoseColor, self.new_detection)
         self.publisher = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
-        
+        self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
+        self.vector_srv = rospy.Service("ring_vector", RingVector, self.get_vector)
+        self.buffer = []  # buffer to catch poses from ring_pose topic
         self.rings = []
         self.marker_array = MarkerArray()
-        self.marker_num = 1
+        self.markerID = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
-        self.robot_position = []
-        self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
-        #self.start = False
-        self.start = True
+        self.col_dict = {"white": ColorRGBA(255 / 255, 255 / 255, 255 / 255, 1), "black": ColorRGBA(0, 0, 0, 1),
+                    "red": ColorRGBA(255 / 255, 0, 0, 1),
+                    "blue": ColorRGBA(0, 0, 255 / 255, 1), "green": ColorRGBA(0, 255 / 255, 0, 1),
+                    "yellow": ColorRGBA(247 / 255, 202 / 255, 24 / 255, 1)}
+        self.start = False  #TODO: CHANGE THIS TO FALSE
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
-            print("Startin with detection")
+            print("Starting with detection")
             self.start = True
 
     def new_detection(self, pose):
@@ -37,69 +41,89 @@ class marker_organizer():
             self.update_markers()
             self.buffer.append(pose)
 
+    # self.rings has tuple of (poseMiddle, vector, occurances, colors dictionary, markerID)
     def check_rings(self):
-        for posee in self.buffer:
-            pose = posee.pose
+        for pose in self.buffer:
             noMatch = 0
 
-            for i, (ring, occurances, colors) in enumerate(self.rings):
+            poseMiddle = pose.poseMiddle
+            poseLeft = pose.poseLeft
+            poseRight = pose.poseRight
+            # calculating new unit vector based on new poses
+            vecLeftRight = np.array([poseRight.position.x - poseLeft.position.x,
+                                     poseRight.position.y - poseLeft.position.y])
+            newUnitVec = vecLeftRight / np.linalg.norm(vecLeftRight)
+
+            newColor = pose.color
+
+            for i, (ring, vector, occurances, colors, markerID) in enumerate(self.rings):
                 numMatches = 0
-                if ring.position.x - self.distThresh <= pose.position.x \
+                # check for x and y
+                if ring.position.x - self.distThresh <= poseMiddle.position.x \
                         <= ring.position.x + self.distThresh:
                     numMatches += 1
-                if ring.position.y - self.distThresh <= pose.position.y \
+                if ring.position.y - self.distThresh <= poseMiddle.position.y \
                         <= ring.position.y + self.distThresh:
                     numMatches += 1
-                # zna bit problem če so dva kroga na isti steni ampak na drugi strani
 
+                # we have new detection of known ring
                 if numMatches == 2:
                     ring.position.x = (ring.position.x * occurances
-                                           + pose.position.x) / (occurances + 1)
+                                       + poseMiddle.position.x) / (occurances + 1)
                     ring.position.y = (ring.position.y * occurances
-                                           + pose.position.y) / (occurances + 1)
+                                       + poseMiddle.position.y) / (occurances + 1)
+                    vector = (vector * occurances + newUnitVec) / (occurances + 1)
                     occurances += 1
-                    if posee.color in colors:
-                        colors[posee.color] += 1
+                    if newColor not in colors:
+                        colors[newColor] = 1
                     else:
-                        colors[posee.color] = 1
-                    self.rings[i] = (ring, occurances, colors)
+                        colors[newColor] += 1
+                    self.rings[i] = (ring, vector, occurances, colors, markerID)
 
-                else:  # no match x,y -> new ring
+                else:  # didn't match on all -> could be new ring
                     noMatch += 1
-                    print("no match")
 
-            if noMatch == len(self.rings):
-                self.rings.append((pose, 1, {str(posee.color): 1}))
+            if noMatch == len(self.rings):  # definetly new ring
+                print("Possible new ring")
+                newId = self.markerID
+                color = {newColor: 1}
+                self.rings.append((poseMiddle, newUnitVec, 1, color, newId))
+                self.markerID += 1
         self.buffer = []
 
     def update_markers(self):
         self.marker_array.markers = []
-        self.marker_num = 1
-        for (pose, occurances, colors) in self.rings:
-            if occurances > 1:
-                self.marker_array.markers.append(self.make_marker(pose, occurances, colors))
-                self.marker_num += 1
-        self.publisher.publish(self.marker_array)
-        print("Markers updated")
+        for (pose, _, occurances, colors, markerID) in self.rings:
+            self.marker_array.markers.append(self.make_marker(pose, occurances, colors, markerID))
 
-    def make_marker(self, pose, occurances, colors):
-        color = max(colors.items(), key=operator.itemgetter(1))[0] #get key of color that occures most
-        col_dict = {"white": ColorRGBA(255/255, 255/255, 255/255, 1), "black": ColorRGBA(0, 0, 0, 1), "red": ColorRGBA(255/255, 0, 0, 1), 
-                    "blue": ColorRGBA(0,0,255/255,1), "green": ColorRGBA(0,255/255,0,1), "yellow": ColorRGBA(247/255,202/255,24/255,1)}
+        self.publisher.publish(self.marker_array)
+        print("Markes updated")
+
+    def make_marker(self, pose, occurances, colors, markerID):
+        currentColor = max(colors.items(), key=operator.itemgetter(1))[0] #get key of color that occures most
         marker = Marker()
         marker.header.stamp = rospy.Time(0)
         marker.header.frame_id = 'map'
         marker.pose = pose
         marker.type = Marker.TEXT_VIEW_FACING
-        marker.text = str(occurances)
+        marker.text = "R:"+str(occurances)
         marker.action = Marker.ADD
         marker.frame_locked = False
         marker.lifetime = rospy.Duration.from_sec(0)
-        marker.id = self.marker_num
+        marker.id = markerID
         marker.scale = Vector3(0.3,0.3,0.3)
-        marker.color = col_dict[color]
-        
+        marker.color = self.col_dict[currentColor] if occurances >= self.occuranceThresh else self.col_dict["white"]
+
         return marker
+
+    def get_vector(self, request):
+        print("Got unitVector request for marker id:", request.markerID)
+        for (_, vector, _, colors, markerID) in self.rings:
+            if request.markerID == markerID:
+                msg = RingVectorResponse()
+                msg.unitVector = np.copy(vector)
+                msg.color = max(colors.items(), key=operator.itemgetter(1))[0]
+                return msg
 
 
 def main():
@@ -107,7 +131,6 @@ def main():
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_rings()
-
         rate.sleep()
 
 
