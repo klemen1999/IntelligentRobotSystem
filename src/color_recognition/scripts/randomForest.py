@@ -22,8 +22,14 @@ class RandomForest:
         self.CLASSES = {"white": 0, "black": 1, "red": 2, "blue": 3, "green": 4, "yellow": 5}
 
         # self.ring_rgb_list_sub = rospy.Subscriber("ring_color_pub", Int2dArray, self.ring_callback)
+
         # service to get ring color
-        self.ring_color_srv = rospy.Service("ring_color", RingColor, self.ring_callback)
+        self.ring_color_srv = rospy.Service("ring_color", RingColor, self.color_callback)
+
+        # service to get cylinder color
+        self.cylinder_color_srv = rospy.Service("cylinder_color", RingColor, self.color_callback)
+
+
         self.cylinder_rgb_list_sub = rospy.Subscriber("cylinder_color_pose", Int2dArray, self.cylinder_callback)
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -34,8 +40,8 @@ class RandomForest:
         # self.pose_color_cylinder_pub = rospy.Publisher('cylinder_pose', PoseColor, queue_size=1000)
         
     
-    def ring_callback(self, request):
-        print("New ring requst")
+    def color_callback(self, request):
+        print("New color requst")
         colors = request.data.lists
         np_colors = np.empty((len(colors), 3))
         for i in range(len(colors)):
@@ -48,19 +54,19 @@ class RandomForest:
         print("Response: ", col)
         return msg
     
-    def cylinder_callback(self, data):
-        colors = data.lists
-        np_colors = np.empty((len(colors), 3))
-        for i in range(len(colors)):
-            np_colors[i] = colors[i].elements
-        rgb_hsv_data = self.getImageData(np_colors)
-        col = self.predict(rgb_hsv_data)
-        
-        msg = PoseColor()
-        msg.pose = data.pose
-        msg.color = col
-        #publish to markers (pose and color)
-        self.pose_color_cylinder_pub.publish(msg)
+    # def cylinder_callback(self, data):
+    #     colors = data.lists
+    #     np_colors = np.empty((len(colors), 3))
+    #     for i in range(len(colors)):
+    #         np_colors[i] = colors[i].elements
+    #     rgb_hsv_data = self.getImageData(np_colors)
+    #     col = self.predict(rgb_hsv_data)
+    #
+    #     msg = PoseColor()
+    #     msg.pose = data.pose
+    #     msg.color = col
+    #     #publish to markers (pose and color)
+    #     self.pose_color_cylinder_pub.publish(msg)
 
     def predict(self, colors):
         result = self.loaded_model.predict(colors)
