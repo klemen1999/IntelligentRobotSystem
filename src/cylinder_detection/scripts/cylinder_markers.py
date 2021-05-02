@@ -7,13 +7,14 @@ from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 from color_recognition.msg import PoseColor
+from cylinder_detection.msg import CylinderPoseColor
 import operator
 
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('cylinder_markers_node')
-        self.subscriber = rospy.Subscriber("cylinder_pose", PoseColor, self.new_detection)
+        self.subscriber = rospy.Subscriber("cylinder_pose_color", CylinderPoseColor, self.new_detection)
         self.buffer = []  # buffer to catch poses from cylinder_pose topic
         self.publisher = rospy.Publisher('cylinder_markers', MarkerArray, queue_size=1000)
         
@@ -33,9 +34,10 @@ class marker_organizer():
             self.start = True
 
     def new_detection(self, pose):
-        if self.start:
-            self.update_markers()
-            self.buffer.append(pose)
+        print("New detection", pose)
+        # if self.start:
+        #     self.update_markers()
+        #     self.buffer.append(pose)
 
     def check_cylinders(self):
         for posee in self.buffer:

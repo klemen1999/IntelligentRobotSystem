@@ -29,8 +29,6 @@ class RandomForest:
         # service to get cylinder color
         self.cylinder_color_srv = rospy.Service("cylinder_color", RingColor, self.color_callback)
 
-
-        self.cylinder_rgb_list_sub = rospy.Subscriber("cylinder_color_pose", Int2dArray, self.cylinder_callback)
         base_dir = os.path.dirname(os.path.realpath(__file__))
 
         filename = '/color_model_RF.sav'
