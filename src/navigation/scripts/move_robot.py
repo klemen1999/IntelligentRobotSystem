@@ -291,6 +291,7 @@ class move_controller():
 			request = CylinderStatusRequest()
 			request.markerID = marker.id
 			response = self.cylinder_status_client(request)
+			color = response.color
 			# don't approach markers with not enough occurances
 			if not response.viable:
 				continue
@@ -299,7 +300,7 @@ class move_controller():
 				# adding marker to see next approach
 				markerToFace = self.make_marker(pose)
 				self.goal_publisher.publish(markerToFace)
-				print("Moving to approach the cylinder")
+				print("Moving to approach the",color,"cylinder")
 				self.move(pose)
 				print("Saying hello to cylinder")
 				self.speak("Hello cylinder")

@@ -31,9 +31,8 @@ class RandomForest:
 
         filename = '/color_model_RF.sav'
         self.loaded_model = pickle.load(open(base_dir + filename, 'rb'))
-
         
-    
+
     def color_callback(self, request):
         print("New color requst")
         colors = request.data.lists
@@ -70,7 +69,6 @@ class RandomForest:
             data[counter, :] = np.concatenate((rgb, hsv))
             counter += 1
         return data
-
 
 
 if __name__ == "__main__":

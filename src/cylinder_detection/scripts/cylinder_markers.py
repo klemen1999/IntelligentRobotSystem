@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import rospy
+import math
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
@@ -15,6 +16,7 @@ class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('cylinder_markers_node')
+        self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
         self.subscriber = rospy.Subscriber("cylinder_pose_color", CylinderPoseColor, self.new_detection)
         self.publisher = rospy.Publisher('cylinder_markers', MarkerArray, queue_size=1000)
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
@@ -31,6 +33,9 @@ class marker_organizer():
                     "yellow": ColorRGBA(247 / 255, 202 / 255, 24 / 255, 1)}
         self.start = False  #TODO: CHANGE THIS TO FALSE
 
+    def get_odometry(self, msg):
+        self.current_position = msg.pose.pose
+
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
             print("Starting with detection")
@@ -38,7 +43,6 @@ class marker_organizer():
 
     def new_detection(self, pose):
         if self.start:
-            self.update_markers()
             self.buffer.append(pose)
 
     # self.cylinder has tuple of (poseMiddle, occurances, colors dictionary, markerID)
@@ -48,6 +52,7 @@ class marker_organizer():
 
             poseMiddle = pose.pose
             newColor = pose.color
+            colorWeight = self.calc_color_weight(poseMiddle, self.current_position)
 
             for i, (cylinder, occurances, colors, markerID) in enumerate(self.cylinders):
                 numMatches = 0
@@ -67,9 +72,9 @@ class marker_organizer():
                                        + poseMiddle.position.y) / (occurances + 1)
                     occurances += 1
                     if newColor not in colors:
-                        colors[newColor] = 1
+                        colors[newColor] = 1*colorWeight
                     else:
-                        colors[newColor] += 1
+                        colors[newColor] += (1+colorWeight)
                     self.cylinders[i] = (cylinder, occurances, colors, markerID)
 
                 else:  # didn't match on all -> could be new cylinder
@@ -78,10 +83,14 @@ class marker_organizer():
             if noMatch == len(self.cylinders):  # definetly new cylinder
                 print("Possible new cylinder")
                 newId = self.markerID
-                color = {newColor: 1}
+                color = {newColor: (1*colorWeight)}
                 self.cylinders.append((poseMiddle, 1, color, newId))
                 self.markerID += 1
         self.buffer = []
+
+    def calc_color_weight(self, start, end):
+        dist = math.sqrt((start.position.x-end.position.x)**2+(start.position.y-end.position.y)**2)
+        return 1/dist
 
     def update_markers(self):
         self.marker_array.markers = []
@@ -110,10 +119,11 @@ class marker_organizer():
 
     def get_status(self, request):
         print("Got status request for marker id:", request.markerID)
-        for (_, occurances, _, markerID) in self.cylinders:
+        for (_, occurances, colors, markerID) in self.cylinders:
             if request.markerID == markerID:
                 msg = CylinderStatusResponse()
                 msg.viable = True if occurances >= self.occuranceThresh else False
+                msg.color = max(colors.items(), key=operator.itemgetter(1))[0]
                 return msg
 
 def main():
@@ -121,6 +131,7 @@ def main():
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_cylinders()
+        marker_org.update_markers()
         rate.sleep()
 
 

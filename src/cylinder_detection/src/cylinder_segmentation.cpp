@@ -127,7 +127,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   // Obtain the cylinder inliers and coefficients
   seg.segment(*inliers_cylinder, *coefficients_cylinder);
   std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
-  ROS_INFO("Hello cylinder");
+
   // Write the cylinder inliers to disk
   extract.setInputCloud(cloud_filtered2);
   extract.setIndices(inliers_cylinder);
@@ -171,8 +171,6 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
     msg.request.data.lists = lists;
 
     std::string color = "white";
-
-    ROS_INFO("Predn");
 
     if (cylinder_color_client.call(msg))
     {

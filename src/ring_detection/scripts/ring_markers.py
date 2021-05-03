@@ -10,11 +10,13 @@ from ring_detection.msg import RingPoseColor
 from ring_detection.srv import RingVector, RingVectorResponse
 import operator
 import numpy as np
+import math
 
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
         rospy.init_node('ring_markers_node')
+        self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
         self.subscriber = rospy.Subscriber("ring_pose_color", RingPoseColor, self.new_detection)
         self.publisher = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
@@ -30,6 +32,10 @@ class marker_organizer():
                     "blue": ColorRGBA(0, 0, 255 / 255, 1), "green": ColorRGBA(0, 255 / 255, 0, 1),
                     "yellow": ColorRGBA(247 / 255, 202 / 255, 24 / 255, 1)}
         self.start = False  #TODO: CHANGE THIS TO FALSE
+
+
+    def get_odometry(self, msg):
+        self.current_position = msg.pose.pose
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
@@ -55,6 +61,7 @@ class marker_organizer():
             newUnitVec = vecLeftRight / np.linalg.norm(vecLeftRight)
 
             newColor = pose.color
+            colorWeight = self.calc_color_weight(poseMiddle, self.current_position)
 
             for i, (ring, vector, occurances, colors, markerID) in enumerate(self.rings):
                 numMatches = 0
@@ -75,9 +82,9 @@ class marker_organizer():
                     vector = (vector * occurances + newUnitVec) / (occurances + 1)
                     occurances += 1
                     if newColor not in colors:
-                        colors[newColor] = 1
+                        colors[newColor] = 1 * colorWeight
                     else:
-                        colors[newColor] += 1
+                        colors[newColor] += (1 * colorWeight)
                     self.rings[i] = (ring, vector, occurances, colors, markerID)
 
                 else:  # didn't match on all -> could be new ring
@@ -86,10 +93,14 @@ class marker_organizer():
             if noMatch == len(self.rings):  # definetly new ring
                 print("Possible new ring")
                 newId = self.markerID
-                color = {newColor: 1}
+                color = {newColor: (1*colorWeight)}
                 self.rings.append((poseMiddle, newUnitVec, 1, color, newId))
                 self.markerID += 1
         self.buffer = []
+
+    def calc_color_weight(self, start, end):
+        dist = math.sqrt((start.position.x-end.position.x)**2+(start.position.y-end.position.y)**2)
+        return 1/dist
 
     def update_markers(self):
         self.marker_array.markers = []

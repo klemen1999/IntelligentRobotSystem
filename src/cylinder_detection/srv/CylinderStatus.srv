@@ -1,3 +1,4 @@
 int8 markerID
 ---
 bool viable
+string color
