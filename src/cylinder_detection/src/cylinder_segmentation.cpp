@@ -5,6 +5,7 @@
 #include <visualization_msgs/Marker.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
@@ -35,6 +36,7 @@ tf2_ros::Buffer tf2_buffer;
 
 //typedef pcl::PointXYZ PointT;
 typedef pcl::PointXYZRGB PointT;
+typedef pcl::PointXYZ PointA;
 
 void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
 {
@@ -44,6 +46,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   time_rec = ros::Time::now();
 
   pcl::PassThrough<PointT> pass;
+  pcl::PassThrough<PointT> pass1;
   pcl::NormalEstimation<PointT, pcl::Normal> ne;
   pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg;
   pcl::PCDWriter writer;
@@ -55,20 +58,29 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   // Datasets
   pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
   pcl::PointCloud<PointT>::Ptr cloud_filtered(new pcl::PointCloud<PointT>);
+  pcl::PCLPointCloud2 cloud_blob_filtered;
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
   pcl::PointCloud<PointT>::Ptr cloud_filtered2(new pcl::PointCloud<PointT>);
+  pcl::PointCloud<PointA>::Ptr cloud_filtered3(new pcl::PointCloud<PointA>);
   pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2(new pcl::PointCloud<pcl::Normal>);
   pcl::ModelCoefficients::Ptr coefficients_plane(new pcl::ModelCoefficients), coefficients_cylinder(new pcl::ModelCoefficients);
   pcl::PointIndices::Ptr inliers_plane(new pcl::PointIndices), inliers_cylinder(new pcl::PointIndices);
 
+  pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+  sor.setInputCloud (cloud_blob);
+  sor.setLeafSize (0.01, 0.01, 0.01);
+  sor.filter (cloud_blob_filtered);
+
   // Read in the cloud data
-  pcl::fromPCLPointCloud2(*cloud_blob, *cloud);
+  pcl::fromPCLPointCloud2(cloud_blob_filtered, *cloud);
   std::cerr << "PointCloud has: " << cloud->points.size() << " data points." << std::endl;
+
+
 
   // Build a passthrough filter to remove spurious NaNs
   pass.setInputCloud(cloud);
   pass.setFilterFieldName("z");
-  pass.setFilterLimits(0, 1.5);
+  pass.setFilterLimits(0.0, 1.5);
   pass.filter(*cloud_filtered);
   std::cerr << "PointCloud after filtering has: " << cloud_filtered->points.size() << " data points." << std::endl;
 
@@ -84,7 +96,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   seg.setNormalDistanceWeight(0.1);
   seg.setMethodType(pcl::SAC_RANSAC);
   seg.setMaxIterations(100);
-  seg.setDistanceThreshold(0.03);
+  seg.setDistanceThreshold(0.01);
   seg.setInputCloud(cloud_filtered);
   seg.setInputNormals(cloud_normals);
   // Obtain the plane inliers and coefficients
@@ -113,6 +125,17 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   extract_normals.setIndices(inliers_plane);
   extract_normals.filter(*cloud_normals2);
 
+  std::cerr << "PointCloud after filtering has: " << cloud_filtered2->points.size() << " data points." << std::endl;
+  /*
+  pass1.setInputCloud(cloud);
+  pass1.setFilterFieldName("y");
+  pass1.setFilterLimits(-0.2, 0.1);
+  pass1.filter(*cloud_filtered2);
+  ROS_INFO("Point cloud has now got %lu", cloud_filtered2->points.size());
+  */
+    // Convert to ROS data type
+
+
   // Create the segmentation object for cylinder segmentation and set all the parameters
   seg.setOptimizeCoefficients(true);
   seg.setModelType(pcl::SACMODEL_CYLINDER);
@@ -136,7 +159,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   extract.filter(*cloud_cylinder);
   if (cloud_cylinder->points.empty())
     std::cerr << "Can't find the cylindrical component." << std::endl;
-  else if (cloud_cylinder->points.size() > 15000)
+  else if (cloud_cylinder->points.size() > 1000)
   {
     std::cerr << "PointCloud representing the cylindrical component: " << cloud_cylinder->points.size() << " data points." << std::endl;
 
