@@ -117,6 +117,12 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   pcl::toPCLPointCloud2(*cloud_plane, outcloud_plane);
   pubx.publish(outcloud_plane);
 
+  pass1.setInputCloud(cloud);
+  pass1.setFilterFieldName("y");
+  pass1.setFilterLimits(-0.2, 0.1);
+  pass1.filter(*cloud_filtered2);
+  ROS_INFO("Point cloud has now got %lu", cloud_filtered2->points.size());
+
   // Remove the planar inliers, extract the rest
   extract.setNegative(true);
   extract.filter(*cloud_filtered2);
@@ -126,16 +132,7 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   extract_normals.filter(*cloud_normals2);
 
   std::cerr << "PointCloud after filtering has: " << cloud_filtered2->points.size() << " data points." << std::endl;
-  /*
-  pass1.setInputCloud(cloud);
-  pass1.setFilterFieldName("y");
-  pass1.setFilterLimits(-0.2, 0.1);
-  pass1.filter(*cloud_filtered2);
-  ROS_INFO("Point cloud has now got %lu", cloud_filtered2->points.size());
-  */
-    // Convert to ROS data type
-
-
+  
   // Create the segmentation object for cylinder segmentation and set all the parameters
   seg.setOptimizeCoefficients(true);
   seg.setModelType(pcl::SACMODEL_CYLINDER);
@@ -285,7 +282,6 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
     marker.lifetime = ros::Duration();
 
     //pubm.publish (marker);
-
     pcl::PCLPointCloud2 outcloud_cylinder;
     pcl::toPCLPointCloud2(*cloud_cylinder, outcloud_cylinder);
     puby.publish(outcloud_cylinder);
