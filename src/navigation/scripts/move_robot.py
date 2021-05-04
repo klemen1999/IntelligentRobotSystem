@@ -13,7 +13,7 @@ from actionlib_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import PointStamped, PoseStamped, Vector3, Pose, Twist, Quaternion
 from visualization_msgs.msg import Marker, MarkerArray
 from face_detection.msg import ImageStatus
-from std_msgs.msg import ColorRGBA
+from std_msgs.msg import ColorRGBA, String
 from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 from nav_msgs.srv import GetPlan
@@ -47,6 +47,8 @@ class move_controller():
 		rospy.wait_for_service("cylinder_status")
 		self.cylinder_status_client = rospy.ServiceProxy("cylinder_status", CylinderStatus)
 		self.visitedCylinders = []
+		# Arm stuff
+		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
 		# move base client
@@ -253,23 +255,13 @@ class move_controller():
 			self.goal_publisher.publish(markerToFace)
 			print("Moving to approach the", color, "ring")
 			self.move(pose)
-			distance = self.distance_to_ring+0.05
-			self.close_approach_ring(distance, True)
+			distance = self.distance_to_ring+0.1
+			self.close_approach(distance, True)
 			print("Now under the ring")
 			print("Saying hello to ring")
 			self.speak("Hello ring")
-			self.close_approach_ring(distance, False)
+			self.close_approach(distance, False)
 			self.visitedRings.append(marker.id)  # add marker id you already visited
-
-
-	def close_approach_ring(self, distance, forward):
-		vel_msg = self.init_vel_msg()
-		if forward:
-			vel_msg.linear.x = distance
-		else:
-			vel_msg.linear.x = -distance
-		self.velocity_pub.publish(vel_msg)
-		rospy.sleep(1)
 
 	def cylinder_marker_received(self, msg):
 		self.cylinder_markers = msg
@@ -302,12 +294,25 @@ class move_controller():
 				self.goal_publisher.publish(markerToFace)
 				print("Moving to approach the",color,"cylinder")
 				self.move(pose)
-				print("Saying hello to cylinder")
+				distance = self.distance_to_cylinder - 0.1
+				self.close_approach(distance, True)
+				print("Saying hello to cylinder and extending arm")
+				self.move_arm("extend")
 				self.speak("Hello cylinder")
-
+				self.move_arm("retract")
+				self.close_approach(distance, False)
 				self.visitedCylinders.append(marker.id)  # add marker id you already visited
 			else:
 				print("Can't reach the cylinder")
+
+	def move_arm(self, action):
+		if action == "retract" or action == "extend":
+			msg = String()
+			msg.data = action
+			self.arm_pub.publish(msg)
+			rospy.sleep(1)
+		else:
+			print("Unknown arm command")
 
 	def approach_transform(self, markerPose, vector, scale):
 		pose = Pose()
@@ -330,6 +335,15 @@ class move_controller():
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		pose = Pose(v, q)
 		return pose
+
+	def close_approach(self, distance, forward):
+		vel_msg = self.init_vel_msg()
+		if forward:
+			vel_msg.linear.x = distance
+		else:
+			vel_msg.linear.x = -distance
+		self.velocity_pub.publish(vel_msg)
+		rospy.sleep(0.5)
 
 	def check_if_reachable(self, targetPose):
 		start = PoseStamped()
@@ -357,7 +371,6 @@ class move_controller():
 		soundMsg = RobotSpeakRequest()
 		soundMsg.message = message
 		self.sound_pub.publish(soundMsg)
-		rospy.sleep(1)
 
 	def make_marker(self, pose):
 		marker = Marker()
