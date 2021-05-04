@@ -161,7 +161,14 @@ class The_Ring:
             depp = self.bridge.imgmsg_to_cv2(data, "32FC1")
         except CvBridgeError as e:
             print(e)
-
+        try:
+            cv_i = rospy.wait_for_message('/camera/rgb/image_raw', Image)
+            #print("RGB stamp ", cv_i.header.stamp)
+            #print("Depth stamp ", data.header.stamp)
+            cv_rgb = self.bridge.imgmsg_to_cv2(cv_i, "rgb8")
+            cv_image = self.bridge.imgmsg_to_cv2(cv_i, "bgr8")
+        except Exception as e:
+            print(e)
         # Set the dimensions of the image
         self.dims = depth_image.shape
 
@@ -194,17 +201,12 @@ class The_Ring:
                 e1 = elps[n]
                 e2 = elps[m]
                 dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
-                if dist < 5:
+                if dist < 15:
                     candidates.append((e1,e2))
 
         # print("Processing is done! found", len(candidates), "candidates for rings")
 
-        try:
-            cv_i = rospy.wait_for_message('/camera/rgb/image_raw', Image)
-            cv_rgb = self.bridge.imgmsg_to_cv2(cv_i, "rgb8")
-            cv_image = self.bridge.imgmsg_to_cv2(cv_i, "bgr8")
-        except Exception as e:
-            print(e)
+        
 
 
         # Extract the depth from the depth image
@@ -239,6 +241,16 @@ class The_Ring:
             y_min = y1 if y1 > 0 else 0
             y_max = y2 if y2 < cv_image.shape[1] else cv_image.shape[1]
 
+            #check in rgb img if there is ellipse
+            povecaj_za = 10
+            minnnX = x_min-povecaj_za if x_min-povecaj_za > 0 else x_min 
+            maxxxX = x_max+povecaj_za if x_max+povecaj_za < cv_image.shape[0] else x_max
+            minnnY = y_min-povecaj_za if y_min-povecaj_za > 0 else y_min
+            maxxxY = y_max+povecaj_za if y_max+povecaj_za < cv_image.shape[1] else y_max
+            color = self.find2elipses(cv_image[minnnX:maxxxX,minnnY:maxxxY])
+            if(color == None):
+                #print("not found")
+                return
             # Get the time that the depth image was recieved
             depth_time = data.header.stamp
 
@@ -258,7 +270,7 @@ class The_Ring:
                     not self.checkNan(poseMiddle) or not self.checkNan(poseLeft) or not self.checkNan(poseRight):
                 continue
 
-
+            """
             # getting the color of the ring
             color_list = []
             msg_list = Int2dArray()
@@ -275,6 +287,7 @@ class The_Ring:
             request.data = msg_list
             response = self.ring_color_client(request)
             color = response.color
+            """
             print("Ring color:",color)
             # createing message to send to ring_markers
             message = RingPoseColor()
@@ -284,11 +297,93 @@ class The_Ring:
             message.color = color
 
             self.ring_color_pub.publish(message)
+        """
+        if len(candidates)>0:
+            print("OK?")
+            cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
+            cv2.waitKey(1)
+        """
 
-        # if len(candidates)>0:
-        #     cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
-        #     cv2.waitKey(1)
+    # find elipses where depth image says so
+    def find2elipses(self, cv_image):
+        # Tranform image to gayscale
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
+        # Do histogram equlization
+        img = cv2.equalizeHist(gray)
+
+        # Binarize the image
+        #ret, thresh = cv2.threshold(img, 50, 255, 0)
+        ret, thresh = cv2.threshold(img, 50, 255, cv2.THRESH_BINARY)
+
+        # Extract contours
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Example how to draw the contours
+        # cv2.drawContours(img, contours, -1, (255, 0, 0), 3)
+
+        # Fit elipses to all extracted contours
+        elps = []
+        for cnt in contours:
+            #     print cnt
+            #     print cnt.shape
+            if cnt.shape[0] >= 20:
+                ellipse = cv2.fitEllipse(cnt)
+                elps.append(ellipse)
+
+
+        # Find two elipses with same centers
+        dist_min = 10000
+        candidates = []
+        for n in range(len(elps)):
+            for m in range(n + 1, len(elps)):
+                e1 = elps[n]
+                e2 = elps[m]
+                dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
+                #             print dist
+                print("dist ", dist)
+                if dist < 10:
+                    if len(candidates)<1:
+                        candidates.append((e1,e2))
+                    else:
+                        if dist < dist_min:
+                            candidates[0] = (e1,e2)
+                            dist_min = dist
+        if len(candidates)<1:
+            return None
+        
+        size = (e1[1][0]+e1[1][1])/2
+        center = (e1[0][1], e1[0][0])
+
+        size2 = (e2[1][0]+e2[1][1])/2
+        center2 = (e2[0][1], e2[0][0])
+
+        # getting the color of the ring
+        color_list = []
+        msg_list = Int2dArray()
+        for i in range(0, cv_image.shape[0]):
+            for j in range(0, cv_image.shape[1]):
+                p = self.insideOutside(center[0], center[1], i, j, size/2, size/2)
+                p2 = self.insideOutside(center2[0], center2[1], i, j, size2/2, size2/2)
+                if (p < 1 and p2 > 1) or (p > 1 and p2 < 1):    # or p == 1 or p2 == 1  
+                    color_list.append(cv_image[i][j])
+                    col = IntList()
+                    col.elements = [cv_image[i][j][2], cv_image[i][j][1], cv_image[i][j][0]]
+                    msg_list.lists.append(col)
+        request = ObjectColorRequest()
+        request.data = msg_list
+        response = self.ring_color_client(request)
+        color = response.color
+
+        # drawing the ellipses on the image
+        cv2.ellipse(cv_image, e1, (0, 255, 0), 2)
+        cv2.ellipse(cv_image, e2, (0, 255, 0), 2)
+        if len(candidates)>0:
+            print("OK?")
+            cv2.imshow("Image window",cv_image)
+            cv2.waitKey(1)
+        return color
+    
     # returns true if there is no Nan values
     def checkNan(self, pose):
         if math.isnan(pose.position.x) or math.isnan(pose.position.y) \
@@ -311,3 +406,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
