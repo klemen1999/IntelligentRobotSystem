@@ -103,20 +103,25 @@ class move_controller():
 			print("Rotating around at the map goal")
 			self.rotate(40, rotDeg, clockwise)
 
-			# check for new face to approach
-			print("Checking for faces to approach")
-			self.check_face_approach()
+			"""
+			if len(self.visitedFaces) < 3:
+				# check for new face to approach
+				print("Checking for faces to approach")
+				self.check_face_approach()
+			"""
 
-			# check for new rings to approach
-			print("Checking for rings to approach")
-			self.check_ring_approach()
+			if len(self.visitedRings) < 3:
+				# check for new rings to approach
+				print("Checking for rings to approach")
+				self.check_ring_approach()
+			
+			if len(self.visitedCylinders) < 3:
+				print("Checking for cylinders to approach")
+				self.check_cylinder_approach()
 
-			print("Checking for cylinders to approach")
-			self.check_cylinder_approach()
-
-			# if len(self.visitedFaces) == 3:
-			# 	print("Found 3 faces. I'm gonna stop now.")
-			# 	return
+			if len(self.visitedRings) >= 3 and len(self.visitedCylinders) >= 3:
+				print("Found everything. I'm gonna stop now.")
+				return
 
 		rospy.loginfo("End")
 
@@ -401,7 +406,7 @@ class move_controller():
 def main():
 	rospy.init_node("move_robot_node")
 	print("Getting autoNavigator goals")
-	autoNavigator = AutoNav(25)
+	autoNavigator = AutoNav(25, True)
 	points = autoNavigator.get_mapGoals()
 	mover = move_controller(points, False)
 	print("Calibrating")
