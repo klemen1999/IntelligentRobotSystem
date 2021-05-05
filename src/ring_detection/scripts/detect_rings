@@ -33,7 +33,7 @@ class The_Ring:
         # Subscribe to the image and/or depth topic
         #self.image_sub = rospy.Subscriber("/camera/rgb/image_raw", Image, self.image_callback)
         #self.depth_sub = rospy.Subscriber("/camera/depth_registered/image_raw", Image, self.depth_callback)
-        self.depth_sub = rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_callback)
+        #self.depth_sub = rospy.Subscriber("/camera/depth/image_raw", Image, self.depth_callback)
 
         # Publiser for the visualization markers
         #self.markers_pub = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
@@ -153,9 +153,10 @@ class The_Ring:
     
         return p
         
-    def depth_callback(self,data):
+    def depth_callback(self):
         #print("got a DEPTH image")
         try:
+            data = rospy.wait_for_message("/camera/depth/image_raw", Image)
             depth_image = self.bridge.imgmsg_to_cv2(data, "16UC1")
             #get float32
             depp = self.bridge.imgmsg_to_cv2(data, "32FC1")
@@ -242,7 +243,7 @@ class The_Ring:
             y_max = y2 if y2 < cv_image.shape[1] else cv_image.shape[1]
 
             #check in rgb img if there is ellipse
-            povecaj_za = 10
+            povecaj_za = 15
             minnnX = x_min-povecaj_za if x_min-povecaj_za > 0 else x_min 
             maxxxX = x_max+povecaj_za if x_max+povecaj_za < cv_image.shape[0] else x_max
             minnnY = y_min-povecaj_za if y_min-povecaj_za > 0 else y_min
@@ -309,28 +310,40 @@ class The_Ring:
         # Tranform image to gayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
+        #cv2.imshow("Image window gray",gray)
+        #cv2.waitKey(1)
+
         # Do histogram equlization
         img = cv2.equalizeHist(gray)
 
+        #cv2.imshow("Image equalizeHist gray",img)
+        #cv2.waitKey(1)
+
         # Binarize the image
         #ret, thresh = cv2.threshold(img, 50, 255, 0)
-        ret, thresh = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+        #ret, thresh = cv2.threshold(img, 200, 255, cv2.THRESH_BINARY)
+        thresh = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
 
+        #cv2.imshow("Image equalizeHist thresh", thresh)
+        #cv2.waitKey(1)
+        #cv2.imshow("Image equalizeHist ret", ret)
+        #cv2.waitKey(1)
         # Extract contours
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
         # Example how to draw the contours
         # cv2.drawContours(img, contours, -1, (255, 0, 0), 3)
-
+        #print(len(contours))
         # Fit elipses to all extracted contours
         elps = []
         for cnt in contours:
             #     print cnt
             #     print cnt.shape
+            #print("shape ", cnt.shape[0])
             if cnt.shape[0] >= 20:
                 ellipse = cv2.fitEllipse(cnt)
                 elps.append(ellipse)
-
+        #print("num of contours ", len(contours))
 
         # Find two elipses with same centers
         dist_min = 10000
@@ -341,12 +354,17 @@ class The_Ring:
                 e2 = elps[m]
                 dist = np.sqrt(((e1[0][0] - e2[0][0]) ** 2 + (e1[0][1] - e2[0][1]) ** 2))
                 #             print dist
-                print("dist ", dist)
-                if dist < 10:
+                #print("dist ", dist)
+                if dist < 8:
+                    size = (e1[1][0]+e1[1][1])/2
+                    size2 = (e2[1][0]+e2[1][1])/2
+                    #print(abs(size-size2))
                     if len(candidates)<1:
-                        candidates.append((e1,e2))
+                        if abs(size-size2) < 50:
+                            candidates.append((e1,e2))
+                            dist_min = dist
                     else:
-                        if dist < dist_min:
+                        if dist < dist_min and abs(size-size2) < 50:
                             candidates[0] = (e1,e2)
                             dist_min = dist
         if len(candidates)<1:
@@ -395,6 +413,11 @@ class The_Ring:
 def main():
 
     ring_finder = The_Ring()
+
+    rate = rospy.Rate(5)
+    while not rospy.is_shutdown():
+        ring_finder.depth_callback()
+        rate.sleep()
 
     try:
         rospy.spin()
