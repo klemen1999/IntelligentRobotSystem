@@ -1,0 +1,8 @@
+<launch>
+    <node pkg="color_recognition" type="randomForest.py" name="random_forest"/>
+    <node pkg="cylinder_detection" type="cylinder_markers.py" name="cylinder_markers" />
+    <include file="$(find cylinder_detection)/launch/find_cylinder.launch" />
+    <node pkg="ring_detection" type="detect_rings" name="detect_rings" />
+    <node pkg="ring_detection" type="ring_markers.py" name="ring_markers" />
+    <node pkg="move_arm" type="move_arm.py" name="move_arm" />
+</launch>
