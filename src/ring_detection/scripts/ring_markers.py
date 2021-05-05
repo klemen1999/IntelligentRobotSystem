@@ -31,7 +31,7 @@ class marker_organizer():
                     "red": ColorRGBA(255 / 255, 0, 0, 1),
                     "blue": ColorRGBA(0, 0, 255 / 255, 1), "green": ColorRGBA(0, 255 / 255, 0, 1),
                     "yellow": ColorRGBA(247 / 255, 202 / 255, 24 / 255, 1)}
-        self.start = False  #TODO: CHANGE THIS TO FALSE
+        self.start = True  #TODO: CHANGE THIS TO FALSE
 
 
     def get_odometry(self, msg):
