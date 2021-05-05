@@ -65,6 +65,7 @@ class move_controller():
 		rospy.wait_for_service("/move_base/make_plan")
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
 	
+		self.visitedPoints = []
 		self.distance_to_face = 0.45
 		self.distance_to_ring = 0.45
 		self.distance_to_cylinder = 0.45
@@ -97,12 +98,14 @@ class move_controller():
 			pose, rotDeg, clockwise = point
 			if not self.check_if_reachable(pose):
 				continue
+			if self.point_already_visited(pose):
+				continue
 			print("---\nMoving to next map goal")
 			marker = self.make_marker(pose)
 			self.goal_publisher.publish(marker)
 			self.move(pose)
 			print("Rotating around at the map goal")
-			self.rotate(40, rotDeg, clockwise)
+			self.rotate(35, rotDeg, clockwise)
 
 			"""
 			if len(self.visitedFaces) < 3:
@@ -111,14 +114,14 @@ class move_controller():
 				self.check_face_approach()
 			"""
 
+			if len(self.visitedCylinders) < 4:
+				print("Checking for cylinders to approach")
+				self.check_cylinder_approach()
+
 			if len(self.visitedRings) < 4:
 				# check for new rings to approach
 				print("Checking for rings to approach")
 				self.check_ring_approach()
-			
-			if len(self.visitedCylinders) < 4:
-				print("Checking for cylinders to approach")
-				self.check_cylinder_approach()
 
 			if len(self.visitedRings) >= 4 and len(self.visitedCylinders) >= 4:
 				print("Found everything. I'm gonna stop now.")
@@ -126,12 +129,24 @@ class move_controller():
 
 		rospy.loginfo("End")
 
+	def point_already_visited(self, given_pose):
+		for pose in self.visitedPoints:
+			dist = self.euclid_distance(pose.position, given_pose.position)
+			if dist < 1:
+				return True
+		return False
+
+	def euclid_distance(self, point1, point2):
+		return math.sqrt((point1.x - point2.x)**2 + (point1.y - point2.y)**2)
+
 	def move(self, pose):
 		goal = MoveBaseGoal()
 		goal.target_pose.header.frame_id = 'map'
 		goal.target_pose.pose = pose
 		self.move_client.send_goal(goal)
 		self.move_client.wait_for_result()
+		self.visitedPoints.append(pose)
+
 
 	def rotate(self, speed, angle, clockwise):
 		speed_rad = self.deg_to_radian(speed)
@@ -229,6 +244,7 @@ class move_controller():
 				len(self.ring_marker_array.markers) > 0:
 				self.move_to_rings()
 		except Exception as e:
+			print(f"Exception {e}")
 			print("No rings detected yet")
 
 	def move_to_rings(self):
@@ -366,10 +382,10 @@ class move_controller():
 		else:
 			return False
 
-	def look_at(self, start_pose, end_pose, angleAdd):
+	def look_at(self, start_pose, end_pose):
 		dx = end_pose.position.x - start_pose.position.x
 		dy = end_pose.position.y - start_pose.position.y
-		rad = math.atan2(dy, dx) + angleAdd
+		rad = math.atan2(dy, dx)
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		return q
