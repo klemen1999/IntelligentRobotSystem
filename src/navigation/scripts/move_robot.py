@@ -33,10 +33,10 @@ class move_controller():
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		# Face stuff
-		self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
-		rospy.wait_for_service("face_normal")
-		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
-		self.visitedFaces = []
+		# self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
+		# rospy.wait_for_service("face_normal")
+		# self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+		# self.visitedFaces = []
 		# Ring stuff
 		self.ring_marker_sub = rospy.Subscriber("ring_markers", MarkerArray, self.ring_marker_received)
 		rospy.wait_for_service("ring_vector")
@@ -47,6 +47,7 @@ class move_controller():
 		rospy.wait_for_service("cylinder_status")
 		self.cylinder_status_client = rospy.ServiceProxy("cylinder_status", CylinderStatus)
 		self.visitedCylinders = []
+		print("Got all of over services")
 		# Arm stuff
 		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
@@ -63,7 +64,7 @@ class move_controller():
 		# service to check if goal is reachable
 		rospy.wait_for_service("/move_base/make_plan")
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
-
+	
 		self.distance_to_face = 0.45
 		self.distance_to_ring = 0.45
 		self.distance_to_cylinder = 0.45
@@ -292,7 +293,8 @@ class move_controller():
 			# don't approach markers with not enough occurances
 			if not response.viable:
 				continue
-			pose = self.approach_transform_original(self.current_position, marker.pose, self.distance_to_cylinder)
+			angleAdd = self.deg_to_radian(15)
+			pose = self.approach_transform_original(self.current_position, marker.pose, self.distance_to_cylinder, angleAdd)
 			if self.check_if_reachable(pose):
 				# adding marker to see next approach
 				markerToFace = self.make_marker(pose)
@@ -326,7 +328,7 @@ class move_controller():
 		pose.orientation = self.look_at(pose, markerPose)
 		return pose
 
-	def approach_transform_original(self, curr_pose, target_pose, scale):
+	def approach_transform_original(self, curr_pose, target_pose, scale, angleAdd):
 		dx = target_pose.position.x - curr_pose.position.x
 		dy = target_pose.position.y - curr_pose.position.y
 		v = Vector3(dx, dy, 0)
@@ -335,7 +337,7 @@ class move_controller():
 		v_mul = v_new_len / v_len
 		v = Vector3(v.x * v_mul, v.y * v_mul, 0)
 		v = Vector3(v.x + curr_pose.position.x, v.y + curr_pose.position.y, 0)
-		rad = math.atan2(dy, dx)
+		rad = math.atan2(dy, dx) + angleAdd
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		pose = Pose(v, q)
@@ -364,10 +366,10 @@ class move_controller():
 		else:
 			return False
 
-	def look_at(self, start_pose, end_pose):
+	def look_at(self, start_pose, end_pose, angleAdd):
 		dx = end_pose.position.x - start_pose.position.x
 		dy = end_pose.position.y - start_pose.position.y
-		rad = math.atan2(dy, dx)
+		rad = math.atan2(dy, dx) + angleAdd
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		return q
