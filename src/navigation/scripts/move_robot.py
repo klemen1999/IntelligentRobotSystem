@@ -264,8 +264,8 @@ class move_controller():
 			distance = self.distance_to_ring+0.1
 			self.close_approach(distance, True)
 			print("Now under the ring")
-			print("Saying hello to ring")
-			self.speak("Hello ring")
+			print(f"Saying hello to {color} ring")
+			self.speak(f"Hello {color} ring")
 			self.close_approach(distance, False)
 			self.visitedRings.append(marker.id)  # add marker id you already visited
 
@@ -293,7 +293,7 @@ class move_controller():
 			# don't approach markers with not enough occurances
 			if not response.viable:
 				continue
-			angleAdd = self.deg_to_radian(15)
+			angleAdd = self.deg_to_radian(20)
 			pose = self.approach_transform_original(self.current_position, marker.pose, self.distance_to_cylinder, angleAdd)
 			if self.check_if_reachable(pose):
 				# adding marker to see next approach
@@ -301,11 +301,11 @@ class move_controller():
 				self.goal_publisher.publish(markerToFace)
 				print("Moving to approach the",color,"cylinder")
 				self.move(pose)
-				distance = self.distance_to_cylinder - 0.1
+				distance = self.distance_to_cylinder
 				self.close_approach(distance, True)
-				print("Saying hello to cylinder and extending arm")
+				print(f"Saying hello to {color} cylinder and extending arm")
 				self.move_arm("extend")
-				self.speak("Hello cylinder")
+				self.speak(f"Hello {color} cylinder")
 				self.move_arm("retract")
 				self.close_approach(distance, False)
 				self.visitedCylinders.append(marker.id)  # add marker id you already visited
@@ -317,7 +317,7 @@ class move_controller():
 			msg = String()
 			msg.data = action
 			self.arm_pub.publish(msg)
-			rospy.sleep(1)
+			rospy.sleep(2)
 		else:
 			print("Unknown arm command")
 
@@ -350,7 +350,7 @@ class move_controller():
 		else:
 			vel_msg.linear.x = -distance
 		self.velocity_pub.publish(vel_msg)
-		rospy.sleep(2)
+		rospy.sleep(1)
 
 	def check_if_reachable(self, targetPose):
 		start = PoseStamped()
