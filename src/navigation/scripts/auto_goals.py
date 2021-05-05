@@ -166,7 +166,7 @@ class AutoNav:
                 pose = self.look_at(points[i], points[0])
             else:
                 pose = self.look_at(points[i], points[i+1])
-            poses.append((pose, 360, 1))
+            poses.append((pose, 300, 1))
         return poses
 
 
@@ -203,6 +203,6 @@ def move(point, client):
 
 if __name__ == '__main__':
     rospy.init_node("goals_node")
-    navigator = AutoNav(25)
+    navigator = AutoNav(33, True)
     points = navigator.get_mapGoals()
     move_points(points)

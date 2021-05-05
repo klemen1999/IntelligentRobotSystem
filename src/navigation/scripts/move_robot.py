@@ -79,7 +79,7 @@ class move_controller():
 			rospy.logwarn(output)
 
 	def calibrate(self):
-		self.rotate(40, 360, True)
+		#self.rotate(40, 360, True)
 		msg = CalibrationMsg()
 		msg.calibrationFinished = True
 		self.calibration_pub.publish(msg)
@@ -110,16 +110,16 @@ class move_controller():
 				self.check_face_approach()
 			"""
 
-			if len(self.visitedRings) < 3:
+			if len(self.visitedRings) < 4:
 				# check for new rings to approach
 				print("Checking for rings to approach")
 				self.check_ring_approach()
 			
-			if len(self.visitedCylinders) < 3:
+			if len(self.visitedCylinders) < 4:
 				print("Checking for cylinders to approach")
 				self.check_cylinder_approach()
 
-			if len(self.visitedRings) >= 3 and len(self.visitedCylinders) >= 3:
+			if len(self.visitedRings) >= 4 and len(self.visitedCylinders) >= 4:
 				print("Found everything. I'm gonna stop now.")
 				return
 
@@ -348,7 +348,7 @@ class move_controller():
 		else:
 			vel_msg.linear.x = -distance
 		self.velocity_pub.publish(vel_msg)
-		rospy.sleep(0.5)
+		rospy.sleep(2)
 
 	def check_if_reachable(self, targetPose):
 		start = PoseStamped()
@@ -406,7 +406,7 @@ class move_controller():
 def main():
 	rospy.init_node("move_robot_node")
 	print("Getting autoNavigator goals")
-	autoNavigator = AutoNav(25, True)
+	autoNavigator = AutoNav(33, True)
 	points = autoNavigator.get_mapGoals()
 	mover = move_controller(points, False)
 	print("Calibrating")
