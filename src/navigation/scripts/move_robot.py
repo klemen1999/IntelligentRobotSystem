@@ -33,10 +33,10 @@ class move_controller():
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		# Face stuff
-		self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
-		rospy.wait_for_service("face_normal")
-		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
-		self.visitedFaces = []
+		# self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
+		# rospy.wait_for_service("face_normal")
+		# self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+		# self.visitedFaces = []
 		# Ring stuff
 		self.ring_marker_sub = rospy.Subscriber("ring_markers", MarkerArray, self.ring_marker_received)
 		rospy.wait_for_service("ring_vector")
@@ -47,6 +47,7 @@ class move_controller():
 		rospy.wait_for_service("cylinder_status")
 		self.cylinder_status_client = rospy.ServiceProxy("cylinder_status", CylinderStatus)
 		self.visitedCylinders = []
+		print("Got all of over services")
 		# Arm stuff
 		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
@@ -63,7 +64,7 @@ class move_controller():
 		# service to check if goal is reachable
 		rospy.wait_for_service("/move_base/make_plan")
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
-
+	
 		self.distance_to_face = 0.45
 		self.distance_to_ring = 0.45
 		self.distance_to_cylinder = 0.45
@@ -323,7 +324,7 @@ class move_controller():
 		pose = Pose()
 		vector = [x*scale for x in vector] # multiply the normal vector to get right distance to face
 		pose.position = Vector3(markerPose.position.x+vector[0], markerPose.position.y+vector[1], 0)
-		pose.orientation = self.look_at(pose, markerPose)
+		pose.orientation = self.look_at(pose, markerPose, 0.35)
 		return pose
 
 	def approach_transform_original(self, curr_pose, target_pose, scale):
@@ -364,10 +365,10 @@ class move_controller():
 		else:
 			return False
 
-	def look_at(self, start_pose, end_pose):
+	def look_at(self, start_pose, end_pose, angleAdd):
 		dx = end_pose.position.x - start_pose.position.x
 		dy = end_pose.position.y - start_pose.position.y
-		rad = math.atan2(dy, dx)
+		rad = math.atan2(dy, dx) + angleAdd
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		return q
