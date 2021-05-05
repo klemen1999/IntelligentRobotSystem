@@ -293,7 +293,8 @@ class move_controller():
 			# don't approach markers with not enough occurances
 			if not response.viable:
 				continue
-			pose = self.approach_transform_original(self.current_position, marker.pose, self.distance_to_cylinder)
+			angleAdd = self.deg_to_radian(15)
+			pose = self.approach_transform_original(self.current_position, marker.pose, self.distance_to_cylinder, angleAdd)
 			if self.check_if_reachable(pose):
 				# adding marker to see next approach
 				markerToFace = self.make_marker(pose)
@@ -324,10 +325,10 @@ class move_controller():
 		pose = Pose()
 		vector = [x*scale for x in vector] # multiply the normal vector to get right distance to face
 		pose.position = Vector3(markerPose.position.x+vector[0], markerPose.position.y+vector[1], 0)
-		pose.orientation = self.look_at(pose, markerPose, 0.35)
+		pose.orientation = self.look_at(pose, markerPose)
 		return pose
 
-	def approach_transform_original(self, curr_pose, target_pose, scale):
+	def approach_transform_original(self, curr_pose, target_pose, scale, angleAdd):
 		dx = target_pose.position.x - curr_pose.position.x
 		dy = target_pose.position.y - curr_pose.position.y
 		v = Vector3(dx, dy, 0)
@@ -336,7 +337,7 @@ class move_controller():
 		v_mul = v_new_len / v_len
 		v = Vector3(v.x * v_mul, v.y * v_mul, 0)
 		v = Vector3(v.x + curr_pose.position.x, v.y + curr_pose.position.y, 0)
-		rad = math.atan2(dy, dx)
+		rad = math.atan2(dy, dx) + angleAdd
 		q = quaternion_from_euler(0, 0, rad)
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		pose = Pose(v, q)
