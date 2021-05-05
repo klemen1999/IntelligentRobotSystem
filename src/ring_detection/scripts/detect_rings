@@ -262,8 +262,21 @@ class The_Ring:
             x_center = int(x_min + (x_max - x_min) / 2)
             y_center = int(y_min + (y_max - y_min) / 2)
 
-            distanceLeft = float(np.nanmedian(depp[x_center-5:x_center+5, y_min:y_min+10]))
-            distanceRight = float(np.nanmedian(depp[x_center-5:x_center+5, y_max:y_max+10]))
+            left_x_1 = x_center-5 if x_center-5 > 0 else x_center
+            left_x_2 = x_center+5 if x_center+5 < depp.shape[0] else depp.shape[0]
+            left_y_2 = y_min+10 if y_min+10 < depp.shape[1] else depp.shape[1]
+            right_y_2 = y_max+10 if y_max+10 < depp.shape[1] else depp.shape[1]
+
+
+            #distanceLeft = float(np.nanmedian(depp[x_center-5:x_center+5, y_min:y_min+10]))
+            #distanceRight = float(np.nanmedian(depp[x_center-5:x_center+5, y_max:y_max+10]))
+            try:
+                distanceLeft = float(np.nanmedian(depp[left_x_1:left_x_2, y_min:left_y_2]))
+                distanceRight = float(np.nanmedian(depp[left_x_1:left_x_2, y_max:y_max+10]))
+            except Exception as e:
+                print(e)
+                continue
+
             poseLeft = self.get_pose2((y_min,y_min+5,x_min,x_min+5), distanceLeft, depth_time)
             poseRight = self.get_pose2((y_max, y_max+5,x_min,x_min+5), distanceRight, depth_time)
 
