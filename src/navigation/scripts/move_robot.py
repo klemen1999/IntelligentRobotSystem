@@ -70,7 +70,6 @@ class move_controller():
 		self.distance_to_ring = 0.45
 		self.distance_to_cylinder = 0.45
 
-
 	def print_status(self, data):
 		if len(data.status_list) < 1:
 			return
@@ -107,13 +106,12 @@ class move_controller():
 			print("Rotating around at the map goal")
 			self.rotate(35, rotDeg, clockwise)
 
-			"""
 			if len(self.visitedFaces) < 3:
 				# check for new face to approach
 				print("Checking for faces to approach")
 				self.check_face_approach()
-			"""
 
+			'''
 			if len(self.visitedCylinders) < 4:
 				print("Checking for cylinders to approach")
 				self.check_cylinder_approach()
@@ -122,10 +120,13 @@ class move_controller():
 				# check for new rings to approach
 				print("Checking for rings to approach")
 				self.check_ring_approach()
-
+			
 			if len(self.visitedRings) >= 4 and len(self.visitedCylinders) >= 4:
 				print("Found everything. I'm gonna stop now.")
 				return
+			'''
+
+			
 
 		rospy.loginfo("End")
 
@@ -146,7 +147,6 @@ class move_controller():
 		self.move_client.send_goal(goal)
 		self.move_client.wait_for_result()
 		self.visitedPoints.append(pose)
-
 
 	def rotate(self, speed, angle, clockwise):
 		speed_rad = self.deg_to_radian(speed)
@@ -176,7 +176,6 @@ class move_controller():
 	def closeTo(self, value, reference, threshold):
 		return ((reference + threshold) >= value >= reference) \
 			   or ((reference - threshold) <= value <= reference)
-
 
 	def get_angular_speed(self, angular_speed, clockwise):
 		if (clockwise):
