@@ -33,10 +33,10 @@ class move_controller():
 		self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
 		self.velocity_pub = rospy.Publisher('cmd_vel_mux/input/teleop', Twist, queue_size=10)
 		# Face stuff
-		# self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
-		# rospy.wait_for_service("face_normal")
-		# self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
-		# self.visitedFaces = []
+		self.face_marker_sub = rospy.Subscriber('face_markers', MarkerArray, self.face_marker_received)
+		rospy.wait_for_service("face_normal")
+		self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+		self.visitedFaces = []
 		# Ring stuff
 		self.ring_marker_sub = rospy.Subscriber("ring_markers", MarkerArray, self.ring_marker_received)
 		rospy.wait_for_service("ring_vector")
@@ -125,8 +125,6 @@ class move_controller():
 				print("Found everything. I'm gonna stop now.")
 				return
 			'''
-
-			
 
 		rospy.loginfo("End")
 
