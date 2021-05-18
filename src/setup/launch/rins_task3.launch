@@ -1,0 +1,11 @@
+<launch>
+    <node pkg="face_detection" type="face_markers.py" name="face_markers"/>
+    <node pkg="qr_and_number_detection" type="extract_digits.py" name="extract_digits" />
+    <node pkg="qr_and_number_detection" type="extract_qr.py" name="extract_qr" />
+    <node pkg="color_recognition" type="randomForest.py" name="random_forest"/>
+    <node pkg="cylinder_detection" type="cylinder_markers.py" name="cylinder_markers" />
+    <include file="$(find cylinder_detection)/launch/find_cylinder.launch" />
+    <node pkg="ring_detection" type="detect_rings" name="detect_rings" />
+    <node pkg="ring_detection" type="ring_markers.py" name="ring_markers" />
+    <node pkg="move_arm" type="move_arm.py" name="move_arm" />
+</launch>

@@ -5,6 +5,7 @@ import os
 import actionlib
 import tf2_ros
 import math
+import time
 from nav_msgs.msg import Odometry
 from tf.transformations import *
 from tf import LookupException, ConnectivityException
@@ -18,6 +19,7 @@ from sound.msg import RobotSpeakRequest
 from navigation.msg import CalibrationMsg
 from nav_msgs.srv import GetPlan
 from auto_goals import AutoNav
+from qr_and_number_detection.msg import DigitsMessage, QrMessage
 from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
 from ring_detection.srv import RingVector, RingVectorRequest
 from cylinder_detection.srv import CylinderStatus, CylinderStatusRequest
@@ -48,6 +50,14 @@ class move_controller():
 		self.cylinder_status_client = rospy.ServiceProxy("cylinder_status", CylinderStatus)
 		self.visitedCylinders = []
 		print("Got all of over services")
+		# Digits stuff
+		self.digits_sub = rospy.Subscriber('/digits', DigitsMessage, self.digits_callback)
+		self.wait_for_digits = False
+		self.current_person_age = 0
+		# Qr code stuff
+		self.qr_sub = rospy.Subscriber('/qr', QrMessage, self.qr_callback)
+		self.wait_for_qr = False
+		self.current_qr_data = None
 		# Arm stuff
 		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
@@ -66,7 +76,7 @@ class move_controller():
 		self.goal_checker = rospy.ServiceProxy("/move_base/make_plan", GetPlan)
 	
 		self.visitedPoints = []
-		self.distance_to_face = 0.45
+		self.distance_to_face = 0.6
 		self.distance_to_ring = 0.45
 		self.distance_to_cylinder = 0.45
 
@@ -203,6 +213,7 @@ class move_controller():
 				self.move_to_faces()
 		except Exception as e:
 			print("No faces detected yet")
+			print(f"Possible error: {e}")
 
 	def move_to_faces(self):
 		for marker in self.face_marker_array.markers:
@@ -223,10 +234,34 @@ class move_controller():
 				# adding marker to see next approach
 				markerToFace = self.make_marker(pose)
 				self.goal_publisher.publish(markerToFace)
+				self.wait_for_digits = True
+				self.wait_for_qr = True
 				print("Moving to approach the face")
 				self.move(pose)
 				print("Saying hello to face")
 				self.speak("Hello face")
+
+				rotated_for_digits = False
+				#Rotate towards digits 
+
+				if(self.wait_for_digits):
+					self.rotate(10, 20, False)
+					rotated_for_digits = True
+
+				rospy.sleep(3)
+
+				#Rotate towards qr code
+				if(self.wait_for_qr):
+					print("Rotating towards qr code")
+					if(rotated_for_digits):
+						self.rotate(10, 40, True)
+					else:
+						self.rotate(10, 20, True)
+
+				rospy.sleep(1)
+
+				print(f"Current person age is: {self.current_person_age}")
+				print(f"Current qr data is: {self.current_qr_data}")
 
 				self.visitedFaces.append(marker.id)  # add marker id you already visited
 			else:
@@ -234,6 +269,19 @@ class move_controller():
 
 	def ring_marker_received(self, msg):
 		self.ring_marker_array = msg
+
+	def digits_callback(self, msg):
+		if(self.wait_for_digits):
+			print(f"Digits received: first --> {msg.first_digit} , second --> {msg.second_digit} ")
+			self.current_person_age = msg.first_digit * 10 + msg.second_digit
+			self.wait_for_digits = False
+		
+	def qr_callback(self, msg):
+		if(self.wait_for_qr):
+			print(f"Qr data received: {msg.qr_data}")
+			self.current_qr_data = msg.qr_data
+			self.wait_for_qr = False
+
 
 	def check_ring_approach(self):
 		try:
@@ -355,6 +403,22 @@ class move_controller():
 		q = Quaternion(q[0], q[1], q[2], q[3])
 		pose = Pose(v, q)
 		return pose
+
+	def move_forward(self, distance, speed):
+		starting_position = self.current_position.position
+		twist = Twist()
+		threshold = 0.5
+
+		twist.linear.x = speed
+
+		current_moved_distance = self.euclid_distance(self.current_position.position, starting_position)
+
+		while(not self.closeTo(current_moved_distance, distance, threshold)):
+			self.velocity_pub.publish(twist)
+			rospy.sleep(0.5)
+		
+		twist.linear.x = 0
+		self.velocity_pub.publish(twist)
 
 	def close_approach(self, distance, forward):
 		vel_msg = self.init_vel_msg()

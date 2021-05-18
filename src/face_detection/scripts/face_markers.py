@@ -27,7 +27,7 @@ class marker_organizer():
         self.markerID = 1
         self.occuranceThresh = occuranceThresh
         self.distThresh = distThresh
-        self.start = False  # TODO: CHANGE TO FALSE
+        self.start = True  # TODO: CHANGE TO FALSE
 
 
     def calibration_callback(self, msg):

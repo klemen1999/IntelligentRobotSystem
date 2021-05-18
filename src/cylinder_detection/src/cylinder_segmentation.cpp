@@ -121,7 +121,6 @@ void cloud_cb(const pcl::PCLPointCloud2ConstPtr &cloud_blob)
   pass1.setFilterFieldName("y");
   pass1.setFilterLimits(-0.2, 0.1);
   pass1.filter(*cloud_filtered2);
-  ROS_INFO("Point cloud has now got %lu", cloud_filtered2->points.size());
 
   // Remove the planar inliers, extract the rest
   extract.setNegative(true);
