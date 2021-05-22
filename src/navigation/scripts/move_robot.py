@@ -250,6 +250,11 @@ class move_controller():
             if not response.viable:
                 continue
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
+            # checking if person has a mask on
+            if not response.hasMask:
+                print("Doesn't have a mask")
+            else:
+                print("Has a mask")
             # calculate pose for approach
             pose = self.approach_transform(marker.pose, normalVec, self.distance_to_face)
             if self.check_if_reachable(pose):
