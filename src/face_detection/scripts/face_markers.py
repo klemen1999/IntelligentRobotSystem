@@ -12,6 +12,15 @@ import numpy as np
 import math
 
 
+class Face():
+    def __init__(self, poseMiddle, normal, markerID, hasMask):
+        self.pose = poseMiddle
+        self.normal = normal
+        self.occurances = 1
+        self.maskArray = np.array([1,0]) if hasMask else np.array([0,1])
+        self.markerID = markerID
+
+
 class marker_organizer():
 
     def __init__(self, occuranceThresh, distThresh):
@@ -41,7 +50,6 @@ class marker_organizer():
             self.buffer.append(pose)
 
 
-    # self.faces has tuple of (poseMiddle, normal, occurances, markerID)
     def check_faces(self):
         for pose in self.buffer:
             noMatch = 0
@@ -49,33 +57,38 @@ class marker_organizer():
             poseMiddle = pose.poseMiddle
             poseLeft = pose.poseLeft
             poseRight = pose.poseRight
+            hasMask = pose.hasMask
             # calculating new unit normal based on new poses
             vecLeftRight = np.array([poseRight.position.x - poseLeft.position.x,
                                      poseRight.position.y - poseLeft.position.y])
             newNormal = np.array([vecLeftRight[1], -vecLeftRight[0]])
             newUnitNormal = newNormal / np.linalg.norm(newNormal)
 
-            for i, (face, normal, occurances, markerID) in enumerate(self.faces):
+            for i, face in enumerate(self.faces):
                 numMatches = 0
                 # check for x and y
-                if face.position.x - self.distThresh <= poseMiddle.position.x \
-                        <= face.position.x + self.distThresh:
+                if face.pose.position.x - self.distThresh <= poseMiddle.position.x \
+                        <= face.pose.position.x + self.distThresh:
                     numMatches += 1
-                if face.position.y - self.distThresh <= poseMiddle.position.y \
-                        <= face.position.y + self.distThresh:
+                if face.pose.position.y - self.distThresh <= poseMiddle.position.y \
+                        <= face.pose.position.y + self.distThresh:
                     numMatches += 1
                 # check for normal matching: greater than 0 means angle is >90
-                if np.dot(normal, newUnitNormal) > 0:
+                if np.dot(face.normal, newUnitNormal) > 0:
                     numMatches += 1
                 # we have new detection of known face
                 if numMatches == 3:
-                        face.position.x = (face.position.x * occurances
-                                           + poseMiddle.position.x) / (occurances + 1)
-                        face.position.y = (face.position.y * occurances
-                                           + poseMiddle.position.y) / (occurances + 1)
-                        normal = (normal * occurances + newUnitNormal) / (occurances + 1)
-                        occurances += 1
-                        self.faces[i] = (face, normal, occurances, markerID)
+                        face.pose.position.x = (face.pose.position.x * face.occurances
+                                           + poseMiddle.position.x) / (face.occurances + 1)
+                        face.pose.position.y = (face.pose.position.y * face.occurances
+                                           + poseMiddle.position.y) / (face.occurances + 1)
+                        face.normal = (face.normal * face.occurances + newUnitNormal) / \
+                                      (face.occurances + 1)
+                        face.occurances += 1
+                        if hasMask:
+                            face.maskArray[0] += 1
+                        else:
+                            face.maskArray[1] += 1
 
                 else:  # didn't match on all -> could be new face
                     noMatch += 1
@@ -86,41 +99,43 @@ class marker_organizer():
                 status_message.status = "NEW_FACE"
                 newId = self.markerID
                 self.img_status_pub.publish(status_message)
-                self.faces.append((poseMiddle, newUnitNormal, 1, newId))
+                self.faces.append(Face(poseMiddle, newUnitNormal, newId, hasMask))
                 self.markerID += 1
+
         self.buffer = []
 
     def update_markers(self):
         self.marker_array.markers = []
-        for (pose, _, occurances, markerID) in self.faces:
-            self.marker_array.markers.append(self.make_marker(pose, occurances, markerID))
+        for face in self.faces:
+            self.marker_array.markers.append(self.make_marker(face))
 
         self.publisher.publish(self.marker_array)
         print("Markes updated")
 
-    def make_marker(self, pose, occurances, markerID):
+    def make_marker(self, face):
         marker = Marker()
         marker.header.stamp = rospy.Time(0)
         marker.header.frame_id = 'map'
-        marker.pose = pose
+        marker.pose = face.pose
         marker.type = Marker.TEXT_VIEW_FACING
-        marker.text = "I:"+str(occurances)
+        marker.text = "I:"+str(face.occurances)
         marker.action = Marker.ADD
         marker.frame_locked = False
         marker.lifetime = rospy.Duration.from_sec(0)
-        marker.id = markerID
+        marker.id = face.markerID
         marker.scale = Vector3(0.3,0.3,0.3)
-        marker.color = ColorRGBA(0, 1, 0, 1) if occurances >= self.occuranceThresh \
+        marker.color = ColorRGBA(0, 1, 0, 1) if face.occurances >= self.occuranceThresh \
             else ColorRGBA(1, 0, 0, 1)
         return marker
 
     def get_normal(self, request):
         print("Got unitNormal request for marker id:", request.markerID)
-        for (_, normal, occurances, markerID) in self.faces:
-            if request.markerID == markerID:
+        for face in self.faces:
+            if request.markerID == face.markerID:
                 msg = FaceNormalResponse()
-                msg.unitNormal = np.copy(normal)
-                msg.viable = True if occurances >= self.occuranceThresh else False
+                msg.unitNormal = np.copy(face.normal)
+                msg.viable = True if face.occurances >= self.occuranceThresh else False
+                msg.hasMask = True if face.maskArray[0]>=face.maskArray[1] else False
                 return msg
 
 def main():

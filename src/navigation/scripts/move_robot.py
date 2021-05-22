@@ -49,7 +49,7 @@ class move_controller():
 		rospy.wait_for_service("cylinder_status")
 		self.cylinder_status_client = rospy.ServiceProxy("cylinder_status", CylinderStatus)
 		self.visitedCylinders = []
-		print("Got all of over services")
+		print("Got all of our services")
 		# Digits stuff
 		self.digits_sub = rospy.Subscriber('/digits', DigitsMessage, self.digits_callback)
 		self.wait_for_digits = False
@@ -62,7 +62,7 @@ class move_controller():
 		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
-		# move base client
+		move base client
 		self.move_client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		rospy.loginfo("Waiting for move base server")
 		self.move_client.wait_for_server()
@@ -228,6 +228,11 @@ class move_controller():
 			if not response.viable:
 				continue
 			normalVec = [response.unitNormal[0], response.unitNormal[1]]
+			# checking if person has a mask on
+			if not response.hasMask:
+				print("Doesn't have a mask")
+			else:
+				print("Has a mask")
 			# calculate pose for approach
 			pose = self.approach_transform(marker.pose, normalVec, self.distance_to_face)
 			if self.check_if_reachable(pose):
@@ -242,7 +247,7 @@ class move_controller():
 				self.speak("Hello face")
 
 				rotated_for_digits = False
-				#Rotate towards digits 
+				#Rotate towards digits
 
 				if(self.wait_for_digits):
 					self.rotate(10, 20, False)
