@@ -137,12 +137,12 @@ class DigitExtractor:
                     message.first_digit = x
                     message.second_digit = y
                     self.digits_pub.publish(message)
-                    rosyp.loginfo('The extracted datapoints are x=%d, y=%d' % (x,y))
+                    print('The extracted datapoints are x='+str(x)+', y='+str(y))
                 else:
-                    rospy.loginfo('The extracted text has is of length %d. Aborting processing' % len(text))
+                    print('The extracted text has is of length '+str(len(text))+'. Aborting processing')
                 
             else:
-                rospy.logwarn('The number of markers is not ok:',len(ids))
+                print('The number of markers is not ok:',str(len(ids)))
         else:
             print('No markers found')
 
