@@ -62,7 +62,7 @@ class move_controller():
 		self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
 		# publisher for sound
 		self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
-		move base client
+		#move base client
 		self.move_client = actionlib.SimpleActionClient("/move_base", MoveBaseAction)
 		rospy.loginfo("Waiting for move base server")
 		self.move_client.wait_for_server()
