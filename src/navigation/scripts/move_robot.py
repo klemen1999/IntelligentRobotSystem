@@ -248,7 +248,11 @@ class move_controller():
 					self.rotate(10, 20, False)
 					rotated_for_digits = True
 
-				rospy.sleep(3)
+				timeout = time.time() + 5
+
+				while(self.wait_for_digits and time.time() < timeout):
+					print("Waiting for digits")
+					rospy.sleep(0.5)
 
 				#Rotate towards qr code
 				if(self.wait_for_qr):
@@ -257,8 +261,6 @@ class move_controller():
 						self.rotate(10, 40, True)
 					else:
 						self.rotate(10, 20, True)
-
-				rospy.sleep(1)
 
 				print(f"Current person age is: {self.current_person_age}")
 				print(f"Current qr data is: {self.current_qr_data}")
