@@ -401,6 +401,9 @@ class The_Ring:
                             and (e1[1][0]/e1[1][1]) > 0.8
                             and (e2[1][0]/e2[1][1]) > 0.8
                             ):
+                            print("r1: " + str(e1[1][0]/e1[1][1]))
+                            print("r2: " + str((e2[1][0]/e2[1][1])))
+                            print("p1: " + str(3.14 * e1[1][0]/2 * e1[1][1]/2) + " p2: " + str(3.14 * e2[1][0]/2 * e2[1][1]/2))
                             candidates.append((e1,e2))
                             dist_min = dist
                     else:
@@ -415,9 +418,12 @@ class The_Ring:
                             and (e1[1][0]/e1[1][1]) > 0.8
                             and (e2[1][0]/e2[1][1]) > 0.8
                         ):
+                            print("r1: " + str(e1[1][0]/e1[1][1]))
+                            print("r2: " + str((e2[1][0]/e2[1][1])))
+                            print("p1: " + str(3.14 * e1[1][0]/2 * e1[1][1]/2) + " p2: " + str(3.14 * e2[1][0]/2 * e2[1][1]/2))
                             candidates[0] = (e1,e2)
                             dist_min = dist
-        if len(candidates)<1:
+        if len(candidates)<1 or (e2[1][0]/e2[1][1]) < 0.8 or (e1[1][0]/e1[1][1]) < 0.8 or abs(((3.14 * e1[1][0]/2 * e1[1][1]/2)  - (3.14 * e2[1][0]/2 * e2[1][1]/2))) > 1500:
             return None
         
         print("ploscina slike: " + str(cv_image.shape[0] * cv_image.shape[1]))
