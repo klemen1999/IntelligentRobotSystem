@@ -401,9 +401,6 @@ class The_Ring:
                             and (e1[1][0]/e1[1][1]) > 0.8
                             and (e2[1][0]/e2[1][1]) > 0.8
                             ):
-                            print("r1: " + str(e1[1][0]/e1[1][1]))
-                            print("r2: " + str((e2[1][0]/e2[1][1])))
-                            print("p1: " + str(3.14 * e1[1][0]/2 * e1[1][1]/2) + " p2: " + str(3.14 * e2[1][0]/2 * e2[1][1]/2))
                             candidates.append((e1,e2))
                             dist_min = dist
                     else:
@@ -418,23 +415,22 @@ class The_Ring:
                             and (e1[1][0]/e1[1][1]) > 0.8
                             and (e2[1][0]/e2[1][1]) > 0.8
                         ):
-                            print("r1: " + str(e1[1][0]/e1[1][1]))
-                            print("r2: " + str((e2[1][0]/e2[1][1])))
-                            print("p1: " + str(3.14 * e1[1][0]/2 * e1[1][1]/2) + " p2: " + str(3.14 * e2[1][0]/2 * e2[1][1]/2))
                             candidates[0] = (e1,e2)
                             dist_min = dist
-        if len(candidates)<1 or (e2[1][0]/e2[1][1]) < 0.8 or (e1[1][0]/e1[1][1]) < 0.8 or abs(((3.14 * e1[1][0]/2 * e1[1][1]/2)  - (3.14 * e2[1][0]/2 * e2[1][1]/2))) > 1500:
+        if len(candidates)<1:
             return None
         
-        print("ploscina slike: " + str(cv_image.shape[0] * cv_image.shape[1]))
-        print("plosina1: " +str(3.14 * e1[1][0]/2 * e1[1][1]/2))
-        print("ploscina2: " +str(3.14 * e2[1][0]/2 * e2[1][1]/2))
+        e1 = candidates[0][0]
+        e2 = candidates[0][1]
+        #print("ploscina slike: " + str(cv_image.shape[0] * cv_image.shape[1]))
+        #print("plosina1: " +str(3.14 * e1[1][0]/2 * e1[1][1]/2))
+        #print("ploscina2: " +str(3.14 * e2[1][0]/2 * e2[1][1]/2))
         size = (e1[1][0]+e1[1][1])/2
-        print("ratio1: " + str(e1[1][0]/e1[1][1]))
+        #print("ratio1: " + str(e1[1][0]/e1[1][1]))
         center = (e1[0][1], e1[0][0])
 
         size2 = (e2[1][0]+e2[1][1])/2
-        print("ratio2: " + str(e2[1][0]/e2[1][1]))
+        #print("ratio2: " + str(e2[1][0]/e2[1][1]))
         center2 = (e2[0][1], e2[0][0])
 
         # getting the color of the ring
@@ -458,7 +454,7 @@ class The_Ring:
         cv2.ellipse(cv_image, e1, (0, 255, 0), 2)
         cv2.ellipse(cv_image, e2, (0, 255, 0), 2)
         if len(candidates)>0:
-            print("OK?")
+            #print("OK?")
             cv2.imshow("Image window",cv_image)
             cv2.waitKey(1)
         return color
