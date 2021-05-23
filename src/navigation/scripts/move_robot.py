@@ -28,6 +28,7 @@ from qr_and_number_detection.msg import DigitsMessage, QrMessage
 from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
 from ring_detection.srv import RingVector, RingVectorRequest
 from cylinder_detection.srv import CylinderStatus, CylinderStatusRequest
+import speech_recognition as sr
 
 
 class move_controller():
@@ -69,6 +70,9 @@ class move_controller():
         self.current_qr_data = None
         # Arm stuff
         self.arm_pub = rospy.Publisher("/arm_command", String, queue_size=2)
+        # Speech stuff
+        self.sr = sr.Recognizer()
+        self.mic = sr.Microphone()
         # publisher for sound
         self.sound_pub = rospy.Publisher("robot_say", RobotSpeakRequest, queue_size=10)
         # move base client
@@ -124,7 +128,6 @@ class move_controller():
             self.move(pose)
             print("Rotating around at the map goal")
             self.rotate(35, rotDeg, clockwise)
-
 
             if len(self.visitedFaces) < 3:
                 # check for new face to approach
@@ -265,8 +268,9 @@ class move_controller():
                 self.wait_for_qr = True
                 print("Moving to approach the face")
                 self.move(pose)
-                print("Saying hello to face")
-                self.speak("Hello face")
+
+                # start dialogue with the face
+                self.face_dialogue()
 
                 rotated_for_digits = False
                 # Rotate towards digits
@@ -519,11 +523,6 @@ class move_controller():
         q = Quaternion(q[0], q[1], q[2], q[3])
         return q
 
-    def speak(self, message):
-        soundMsg = RobotSpeakRequest()
-        soundMsg.message = message
-        self.sound_pub.publish(soundMsg)
-
     def make_marker(self, pose):
         marker = Marker()
         marker.header.stamp = rospy.Time(0)
@@ -611,15 +610,34 @@ class move_controller():
         pose.orientation.z = quaternion[2]
         pose.orientation.w = quaternion[3]
 
-    def ghetto_move(self):
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = 'map'
-        goal.target_pose.pose.position.x = -0.17239
-        goal.target_pose.pose.position.y = -0.8683148
-        goal.target_pose.pose.orientation.z = -0.63146085
-        goal.target_pose.pose.orientation.w = 0.7754
-        self.move_client.send_goal(goal)
-        self.move_client.wait_for_result()
+    def face_dialogue(self):
+        print("Starting dialogue")
+        question = self.recognize_speech()
+        print(question)
+
+
+    def recognize_speech(self):
+        with self.mic as source:
+            print('Adjusting mic for ambient noise...')
+            self.sr.adjust_for_ambient_noise(source)
+            print('SPEAK NOW!')
+            audio = self.sr.listen(source)
+
+        print('I am now processing the sounds you made.')
+        recognized_text = ''
+        try:
+            recognized_text = self.sr.recognize_google(audio)
+        except sr.RequestError as e:
+            print('API is probably unavailable', e)
+        except sr.UnknownValueError:
+            print('Did not manage to recognize anything.')
+
+        return recognized_text
+
+    def speak(self, message):
+        soundMsg = RobotSpeakRequest()
+        soundMsg.message = message
+        self.sound_pub.publish(soundMsg)
 
 
 def main():
