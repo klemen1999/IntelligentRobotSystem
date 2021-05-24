@@ -38,3 +38,5 @@ catkin_package()
 catkin_install_python(PROGRAMS scripts/extract_digits.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 catkin_install_python(PROGRAMS scripts/extract_qr.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
+catkin_install_python(PROGRAMS scripts/extract_speech.py DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+

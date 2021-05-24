@@ -7,7 +7,7 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
-from cylinder_detection.msg import CylinderPoseColor
+from cylinder_detection.msg import CylinderPoseColor, CylindersList, CylinderDetection
 from cylinder_detection.srv import CylinderStatus, CylinderStatusResponse
 import operator
 import numpy as np
@@ -19,6 +19,7 @@ class marker_organizer():
         self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
         self.subscriber = rospy.Subscriber("cylinder_pose_color", CylinderPoseColor, self.new_detection)
         self.publisher = rospy.Publisher('cylinder_markers', MarkerArray, queue_size=1000)
+        self.detection_pub = rospy.Publisher("cylinder_detection", CylindersList, queue_size=10)  # list of detections
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
         self.status_srv = rospy.Service("cylinder_status", CylinderStatus, self.get_status)
         self.buffer = []  # buffer to catch poses from cylinder_pose topic
@@ -94,10 +95,17 @@ class marker_organizer():
 
     def update_markers(self):
         self.marker_array.markers = []
+        detections = CylindersList()
         for (pose, occurances, colors, markerID) in self.cylinders:
             self.marker_array.markers.append(self.make_marker(pose, occurances, colors, markerID))
+            element = CylinderDetection()
+            element.id = markerID
+            element.pose = pose
+            element.color = max(colors.items(), key=operator.itemgetter(1))[0]
+            detections.list.append(element)
 
         self.publisher.publish(self.marker_array)
+        self.detection_pub.publish(detections)
         print("Markes updated")
 
     def make_marker(self, pose, occurances, colors, markerID):

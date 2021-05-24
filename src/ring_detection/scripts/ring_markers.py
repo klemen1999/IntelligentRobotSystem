@@ -6,7 +6,7 @@ from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
-from ring_detection.msg import RingPoseColor
+from ring_detection.msg import RingPoseColor, RingDetection, RingsList
 from ring_detection.srv import RingVector, RingVectorResponse
 import operator
 import numpy as np
@@ -19,6 +19,7 @@ class marker_organizer():
         self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
         self.subscriber = rospy.Subscriber("ring_pose_color", RingPoseColor, self.new_detection)
         self.publisher = rospy.Publisher('ring_markers', MarkerArray, queue_size=1000)
+        self.detection_pub = rospy.Publisher("ring_detection", RingsList, queue_size=10)  # list of detections
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
         self.vector_srv = rospy.Service("ring_vector", RingVector, self.get_vector)
         self.buffer = []  # buffer to catch poses from ring_pose topic
@@ -104,10 +105,17 @@ class marker_organizer():
 
     def update_markers(self):
         self.marker_array.markers = []
+        detections = RingsList()
         for (pose, _, occurances, colors, markerID) in self.rings:
             self.marker_array.markers.append(self.make_marker(pose, occurances, colors, markerID))
+            element = RingDetection()
+            element.id = markerID
+            element.pose = pose
+            element.color = max(colors.items(), key=operator.itemgetter(1))[0]
+            detections.list.append(element)
 
         self.publisher.publish(self.marker_array)
+        self.detection_pub.publish(detections)
         print("Markes updated")
 
     def make_marker(self, pose, occurances, colors, markerID):

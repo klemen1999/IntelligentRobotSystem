@@ -1,22 +1,18 @@
 
 class Person:
 
-    def __init__(self, person_id, location, cylinder="white", age=0, mask=False):
-        self.person_id = person_id
+    def __init__(self, pose, cylinder="white", age=0, mask=False, training=False, visited=False, point=None, vaccinated=False):
         self.age = age
-        self.location = location
+        self.pose = pose
         self.cylinder = cylinder
         self.mask = mask
+        self.training = training
+        self.visited = visited
+        self.approachPoint = point
+        self.preferredVacc = False
+        self.vaccinated = vaccinated
 
     def __str__(self):
-        return f"age: {self.age} \nlocation: {self.location} \ncylinder: {self.cylinder} \nmask: {self.mask}"
-
-    def set_age(self, age):
-        print(f"Setting age for person {self.person_id} to {age}")
-        self.age = age
-
-    def get_age(self):
-        return self.age
-
-    def update_from_marker(self, marker):
-        self.location = marker.pose
+        return f"age: {self.age} \ncylinder: {self.cylinder} " \
+               f"\nmask: {self.mask}  \ntraining: {self.training} \nvisited: {self.visited} " \
+               f"\npreferredVacc: {self.preferredVacc} \nvacc: {self.vaccinated}"

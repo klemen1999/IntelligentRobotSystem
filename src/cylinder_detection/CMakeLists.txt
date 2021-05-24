@@ -30,6 +30,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(DIRECTORY msg
   FILES
   CylinderPoseColor.msg
+  CylinderDetection.msg
+  CylindersList.msg
 )
 
 add_service_files(

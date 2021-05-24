@@ -19,6 +19,8 @@ add_message_files(
   FILES
   ImageStatus.msg
   FacePoses.msg
+  FaceDetection.msg
+  FacesList.msg
  )
 
 add_service_files(

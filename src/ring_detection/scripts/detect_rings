@@ -181,8 +181,6 @@ class The_Ring:
         
         # Binarize the image
         ret, thresh = cv2.threshold(image_viz, 50, 255, cv2.THRESH_BINARY)
-        
-
 
         # Extract contours
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -249,6 +247,7 @@ class The_Ring:
             minnnY = y_min-povecaj_za if y_min-povecaj_za > 0 else y_min
             maxxxY = y_max+povecaj_za if y_max+povecaj_za < cv_image.shape[1] else y_max
             color = self.find2elipses(cv_image[minnnX:maxxxX,minnnY:maxxxY])
+
             if(color == None):
                 #print("not found")
                 return
@@ -311,20 +310,20 @@ class The_Ring:
             message.color = color
 
             self.ring_color_pub.publish(message)
-        """
-        if len(candidates)>0:
-            print("OK?")
-            cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
-            cv2.waitKey(1)
-        """
+
+        # if len(candidates)>0:
+        #     print("OK?")
+        #     cv2.imshow("Image window",cv_image[x_min:x_max,y_min:y_max])
+        #     cv2.waitKey(1)
+
 
     # find elipses where depth image says so
     def find2elipses(self, cv_image):
         # Tranform image to gayscale
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
 
-        #cv2.imshow("Image window gray",gray)
-        #cv2.waitKey(1)
+        # cv2.imshow("Image window gray",gray)
+        # cv2.waitKey(1)
 
         # Do histogram equlization
         img = cv2.equalizeHist(gray)
@@ -453,10 +452,10 @@ class The_Ring:
         # drawing the ellipses on the image
         cv2.ellipse(cv_image, e1, (0, 255, 0), 2)
         cv2.ellipse(cv_image, e2, (0, 255, 0), 2)
-        if len(candidates)>0:
-            #print("OK?")
-            cv2.imshow("Image window",cv_image)
-            cv2.waitKey(1)
+        # if len(candidates)>0:
+        #     #print("OK?")
+        #     cv2.imshow("Image window",cv_image)
+        #     cv2.waitKey(1)
         return color
     
     # returns true if there is no Nan values
@@ -470,7 +469,7 @@ class The_Ring:
 def main():
 
     ring_finder = The_Ring()
-
+    
     rate = rospy.Rate(5)
     while not rospy.is_shutdown():
         ring_finder.depth_callback()

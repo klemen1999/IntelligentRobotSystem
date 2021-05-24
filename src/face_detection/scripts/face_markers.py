@@ -4,7 +4,7 @@ import rospy
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
-from face_detection.msg import ImageStatus, FacePoses
+from face_detection.msg import ImageStatus, FacePoses, FaceDetection, FacesList
 from face_detection.srv import FaceNormal, FaceNormalResponse
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
@@ -27,6 +27,7 @@ class marker_organizer():
         rospy.init_node('face_markers_node')
         self.subscriber = rospy.Subscriber("face_pose", FacePoses, self.new_detection)
         self.publisher = rospy.Publisher('face_markers', MarkerArray, queue_size=1000)
+        self.detection_pub = rospy.Publisher("face_detection", FacesList, queue_size=10)  # list of detections
         self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
         self.normal_srv = rospy.Service("face_normal", FaceNormal, self.get_normal)
@@ -106,10 +107,16 @@ class marker_organizer():
 
     def update_markers(self):
         self.marker_array.markers = []
+        detections = FacesList()
         for face in self.faces:
             self.marker_array.markers.append(self.make_marker(face))
+            element = FaceDetection()
+            element.id = face.markerID
+            element.pose = face.pose
+            detections.list.append(element)
 
         self.publisher.publish(self.marker_array)
+        self.detection_pub.publish(detections)
         print("Markes updated")
 
     def make_marker(self, face):
@@ -135,8 +142,24 @@ class marker_organizer():
                 msg = FaceNormalResponse()
                 msg.unitNormal = np.copy(face.normal)
                 msg.viable = True if face.occurances >= self.occuranceThresh else False
-                msg.hasMask = True if face.maskArray[0]>=face.maskArray[1] else False
+                msg.hasMask = True if face.maskArray[0] >= face.maskArray[1] else False
+                msg.warn = self.check_if_too_close(face)
                 return msg
+
+    def check_if_too_close(self, currentFace):
+        for face in self.faces:
+            if face != currentFace:
+                dist = self.euclid_distance(face.pose.position, currentFace.pose.position)
+                if dist < 1:
+                    if np.dot(face.normal, currentFace.normal) > 0:
+                        return True
+        return False
+
+
+    def euclid_distance(self, point1, point2):
+        return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
+
+
 
 def main():
     marker_org = marker_organizer(5, 0.5)

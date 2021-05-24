@@ -14,6 +14,8 @@ find_package(catkin REQUIRED
 add_message_files(
   FILES
   RingPoseColor.msg
+  RingDetection.msg
+  RingsList.msg
  )
 
 add_service_files(
