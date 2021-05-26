@@ -278,6 +278,7 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
+            warnMask = response.hasMask
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
@@ -292,8 +293,9 @@ class move_controller():
                 self.move(pose)
 
                 if warn:
+                    print("Please keep social distance")
+                if warnMask:
                     print("Please put on your mask")
-
                 # start dialogue with the face
                 try:
                     anwsers = self.face_dialogue(self.persons[id])
