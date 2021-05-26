@@ -9,10 +9,9 @@ class Person:
         self.training = training
         self.visited = visited
         self.approachPoint = point
-        self.preferredVacc = False
         self.vaccinated = vaccinated
 
     def __str__(self):
         return f"age: {self.age} \ncylinder: {self.cylinder} " \
                f"\nmask: {self.mask}  \ntraining: {self.training} \nvisited: {self.visited} " \
-               f"\npreferredVacc: {self.preferredVacc} \nvacc: {self.vaccinated}"
+               f"\nvacc: {self.vaccinated}"
