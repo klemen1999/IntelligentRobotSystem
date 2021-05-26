@@ -318,6 +318,7 @@ class move_controller():
                 self.persons[id].approachPoint = pose
                 self.persons[id].mask = response.hasMask
                 self.persons[id].age = self.current_person_age
+                print(self.persons[id])
                 cylinder = self.cylinder_by_person(self.persons[id].cylinder)
                 print(f"Cylinder: {cylinder}")
                 if cylinder:
@@ -467,10 +468,8 @@ class move_controller():
                 if not self.wait_for_qr and self.current_qr_data != '':
                     print("Building a model")
                     model = build_model_from_url(self.current_qr_data)
-                    datapoint = pd.DataFrame({"Age": [18], "Workout": [22]})
-                    prediction = model.predict(datapoint)
+                    self.cylinders[id].model = model
                     print("Finished model")
-                    print(f"Prediction: {prediction}")
                     self.current_qr_data = ''
                 else:
                     self.wait_for_qr = False
@@ -484,7 +483,7 @@ class move_controller():
                 # check if this cylinder is needed
                 person = self.person_by_cylinder(self.cylinders[id].color)
                 if person:
-                    self.get_person_vaccine()
+                    self.get_person_vaccine(person, self.cylinders[id])
                     self.move_to_ring(person.ring, person)
                     pass
 
@@ -495,7 +494,7 @@ class move_controller():
         person_data = pd.DataFrame({'Age': [person.age], 'Workout': [person.training]})
         vaccine = cylinder.model.predict(person_data)[0]
         person.ring = ring_name_from_vaccine_name(vaccine)
-        print(f"Got vaccine for person {person.id}, vaccine: {vaccine}")
+        print(f"Got vaccine for person vaccine: {vaccine}")
 
     def person_by_cylinder(self, color):
         for id in self.persons:
@@ -673,10 +672,10 @@ class move_controller():
         userInput, timedOut = timedInput("Press d to enter debug mode")
         if timedOut:
             if userInput=="d":
-                self.face_dialogue_debug(person)
+                return self.face_dialogue_debug(person)
         else:
             if userInput == "d":
-                self.face_dialogue_debug(person)
+                return self.face_dialogue_debug(person)
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
