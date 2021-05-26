@@ -259,9 +259,17 @@ class move_controller():
             print("No faces detected yet")
 
     def move_to_faces(self):
+
         for id in self.persons:
-            if self.persons[id].visited:
+            if self.persons[id].visited and not self.persons[id].vaccinated:
+                cylinder = self.cylinder_by_person(self.persons[id].cylinder)
+                print(f"Cylinder: {cylinder}")
+                if cylinder:
+                    print(f"Calculating the best vaccine for person")
+                    self.get_person_vaccine(self.persons[id], cylinder)
+                    self.move_to_ring(self.persons[id].ring, self.persons[id])
                 continue
+
             request = FaceNormalRequest()
             request.markerID = id
             response = self.face_normal_client(request)
@@ -428,6 +436,10 @@ class move_controller():
         for id in self.cylinders:
             # check if you already visited the marker
             if self.cylinders[id].visited:
+                person = self.person_by_cylinder(self.cylinders[id].color)
+                if person and not person.vaccinated:
+                    self.get_person_vaccine(person, self.cylinders[id])
+                    self.move_to_ring(person.ring, person)
                 continue
             # calculating pose for approach
             request = CylinderStatusRequest()
@@ -437,7 +449,7 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
-            angleAdd = self.deg_to_radian(20)
+            angleAdd = self.deg_to_radian(0)
             pose = self.approach_transform_original(self.current_position, self.cylinders[id].pose,
                                                     self.distance_to_cylinder, angleAdd)
             if self.check_if_reachable(pose):
@@ -482,7 +494,7 @@ class move_controller():
                 self.cylinders[id].visited = True
                 # check if this cylinder is needed
                 person = self.person_by_cylinder(self.cylinders[id].color)
-                if person:
+                if person and not person.vaccinated:
                     self.get_person_vaccine(person, self.cylinders[id])
                     self.move_to_ring(person.ring, person)
                     pass
