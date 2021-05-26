@@ -276,7 +276,7 @@ class move_controller():
                     anwsers = self.face_dialogue(self.persons[id])
                 except Exception as err:
                     print(f"Possible error: {err}")
-                    
+
                 if not anwsers:
                     print("We can skip this person")
                     continue
