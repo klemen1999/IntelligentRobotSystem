@@ -7,6 +7,7 @@ import tf2_ros
 import math
 import time
 import pandas as pd
+from pytimedinput import timedInput
 from nav_msgs.msg import Odometry
 from tf.transformations import *
 from tf import LookupException, ConnectivityException
@@ -669,6 +670,13 @@ class move_controller():
 
     def face_dialogue(self, person):
         print("Starting dialogue")
+        userInput, timedOut = timedInput("Press d to enter debug mode")
+        if timedOut:
+            if userInput=="d":
+                self.face_dialogue_debug(person)
+        else:
+            if userInput == "d":
+                self.face_dialogue_debug(person)
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
@@ -683,10 +691,33 @@ class move_controller():
             print("Color not detected")
         print(f"Person doctor: {person.cylinder}")
         self.speak("How many hours per week do you exercise?")
-        person.training = int(self.recognize_speech())
-        print(f"Person training: {person.training}")
+        try:
+            person.training = int(self.recognize_speech())
+            print(f"Person training: {person.training}")
+        except:
+            print(f"Sorry this is not a number")
         return True
 
+
+    def face_dialogue_debug(self, person):
+        self.speak("Have you already been vaccinated?")
+        alreadyVaccinated = input("Anwser: ")
+        if alreadyVaccinated == "yes":
+            self.finished += 1
+            return False
+        self.speak("Who is your personal doctor?")
+        doctor = input("Anwser: ")
+        temp = doctor.split(" ")
+        for word in temp:
+            if word.lower() in self.colors:
+                person.cylinder = word.lower()
+        if person.cylinder == "white":
+            print("Color not detected")
+        print(f"Person doctor: {person.cylinder}")
+        self.speak("How many hours per week do you exercise?")
+        person.training = int(input("Anwser: "))
+        print(f"Person training: {person.training}")
+        return True
 
     def recognize_speech(self):
         with self.mic as source:

@@ -1,5 +1,5 @@
 <launch>
-    <include file="$(find setup)/launch/rins_world.launch" />
+    <include file="$(find setup)/launch/rins_world_arm.launch" />
     <include file="$(find setup)/launch/amcl_simulation.launch"/>
     <include file="$(find turtlebot_rviz_launchers)/launch/view_navigation.launch" />
     <include file="$(find sound)/launch/robot_sound.launch" />
