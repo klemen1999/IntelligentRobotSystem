@@ -6,6 +6,7 @@ import actionlib
 import tf2_ros
 import math
 import time
+import pandas as pd
 from nav_msgs.msg import Odometry
 from tf.transformations import *
 from tf import LookupException, ConnectivityException
@@ -23,6 +24,7 @@ from task import Task
 from person import Person
 from ring import Ring
 from cylinder import Cylinder
+from cylinder_models import build_model_from_url
 from common_methods import color_name_from_rgba
 from qr_and_number_detection.msg import DigitsMessage, QrMessage
 from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
@@ -93,7 +95,7 @@ class move_controller():
         self.visitedPoints = []
         self.distance_to_face = 0.6
         self.distance_to_ring = 0.45
-        self.distance_to_cylinder = 0.45
+        self.distance_to_cylinder = 0.35
 
     def print_status(self, data):
         if len(data.status_list) < 1:
@@ -500,10 +502,27 @@ class move_controller():
                 where_am_i_rotated = self.where_am_i_rotated()
                 print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
 
+                timeout = time.time() + 2
+                while self.wait_for_qr and time.time() < timeout:
+                    print("Waiting for qr code")
+                    rospy.sleep(0.25)
+
                 if self.wait_for_qr:
                     print("Didn't find qr code on cylinder, trying to move around it")
                     self.move_around_cylinder(self.cylinders[id].pose)
-                # TODO: train a classifier and add it to cylinder
+
+                if not self.wait_for_qr and self.current_qr_data != '':
+                    print("Building a model")
+                    model = build_model_from_url(self.current_qr_data)
+                    datapoint = pd.DataFrame({"Age": [18], "Workout": [22]})
+                    prediction = model.predict(datapoint)
+                    print("Finished model")
+                    print(f"Prediction: {prediction}")
+                    self.current_qr_data = ''
+                else:
+                    self.wait_for_qr = False
+                    print("Unable to find qr code")
+
                 self.cylinders[id].visited = True
             else:
                 print("Can't reach the cylinder")

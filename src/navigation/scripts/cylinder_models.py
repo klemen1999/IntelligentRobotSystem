@@ -10,7 +10,7 @@ from sklearn import metrics
 def build_model_from_url(url):
     df = download_file_from_url(url)
     train, test = split_data(df)
-    build_model(DecisionTreeClassifier(), train, test)
+    return build_model(DecisionTreeClassifier(), train, test)
 
 
 def download_file_from_url(url):
