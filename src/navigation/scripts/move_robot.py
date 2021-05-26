@@ -25,7 +25,7 @@ from person import Person
 from ring import Ring
 from cylinder import Cylinder
 from cylinder_models import build_model_from_url
-from common_methods import color_name_from_rgba
+from common_methods import color_name_from_rgba, ring_name_from_vaccine_name
 from qr_and_number_detection.msg import DigitsMessage, QrMessage
 from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
 from face_detection.msg import FacesList
@@ -318,9 +318,11 @@ class move_controller():
                 self.persons[id].mask = response.hasMask
                 self.persons[id].age = self.current_person_age
                 cylinder = self.cylinder_by_person(self.persons[id].cylinder)
+                print(f"Cylinder: {cylinder}")
                 if cylinder:
-                    # dobi classifier
-                    # self.move_to_ring(ringColor, self.persons[id])
+                    print(f"Calculating the best vaccine for person")
+                    self.get_person_vaccine(self.persons[id], cylinder)
+                    self.move_to_ring(self.persons[id].ring, self.persons[id])
                     pass
 
             else:
@@ -459,6 +461,8 @@ class move_controller():
                     print("Didn't find qr code on cylinder, trying to move around it")
                     self.move_around_cylinder(self.cylinders[id].pose)
 
+                model = None
+
                 if not self.wait_for_qr and self.current_qr_data != '':
                     print("Building a model")
                     model = build_model_from_url(self.current_qr_data)
@@ -471,16 +475,26 @@ class move_controller():
                     self.wait_for_qr = False
                     print("Unable to find qr code")
 
+                if not model:
+                    print("Model not built, ending function")
+                    return
+
                 self.cylinders[id].visited = True
                 # check if this cylinder is needed
                 person = self.person_by_cylinder(self.cylinders[id].color)
                 if person:
-                    # dobi classifier
-                    # self.move_to_ring(ringColor, person)
+                    self.get_person_vaccine()
+                    self.move_to_ring(person.ring, person)
                     pass
 
             else:
                 print("Can't reach the cylinder")
+
+    def get_person_vaccine(self, person, cylinder):
+        person_data = pd.DataFrame({'Age': [person.age], 'Workout': [person.training]})
+        vaccine = cylinder.model.predict(person_data)[0]
+        person.ring = ring_name_from_vaccine_name(vaccine)
+        print(f"Got vaccine for person {person.id}, vaccine: {vaccine}")
 
     def person_by_cylinder(self, color):
         for id in self.persons:

@@ -17,3 +17,13 @@ def color_name_from_rgba(color_rgba):
     elif ColorRGBA(247 / 255, 202 / 255, 24 / 255, 1):
         return "yellow"
     return "unknown color"
+
+
+def ring_name_from_vaccine_name(vaccine_name):
+    vaccine_dict = {
+        'BlacknikV': 'black',
+        'Rederna': 'red',
+        'Greenzer': 'green',
+        'StellaBluera': 'blue'
+    }
+    return vaccine_dict[vaccine_name]
