@@ -675,12 +675,10 @@ class move_controller():
 
     def face_dialogue(self, person):
         print("Starting dialogue")
-        print("Have you already been vaccinated?")
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
             return False
-        print("Who is your personal doctor?")
         self.speak("Who is your personal doctor?")
         doctor = self.recognize_speech()
         temp = doctor.split(" ")
@@ -690,7 +688,6 @@ class move_controller():
         if person.cylinder == "white":
             print("Color not detected")
         print(f"Person doctor: {person.cylinder}")
-        print("How many hours per week do you exercise?")
         self.speak("How many hours per week do you exercise?")
         person.training = int(self.recognize_speech())
         print(f"Person training: {person.training}")
@@ -716,6 +713,7 @@ class move_controller():
         return recognized_text
 
     def speak(self, message):
+        print(message)
         soundMsg = RobotSpeakRequest()
         soundMsg.message = message
         self.sound_pub.publish(soundMsg)
