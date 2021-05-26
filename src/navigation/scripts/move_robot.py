@@ -272,7 +272,11 @@ class move_controller():
                     print("Please put on your mask")
 
                 # start dialogue with the face
-                anwsers = self.face_dialogue(self.persons[id])
+                try:
+                    anwsers = self.face_dialogue(self.persons[id])
+                except Exception as err:
+                    print(f"Possible error: {err}")
+                    
                 if not anwsers:
                     print("We can skip this person")
                     continue
@@ -410,14 +414,14 @@ class move_controller():
     #         self.close_approach(distance, False)
     #         self.visitedRings.append(marker.id)  # add marker id you already visited
 
-    # def cylinder_marker_received(self, msg):
-    #     for marker in msg.list:
-    #         if marker.id in self.cylinders:
-    #             self.cylinders[marker.id].pose = marker.pose
-    #             self.cylinders[marker.id].color = marker.color
-    #         else:
-    #             self.cylinders[marker.id] = Cylinder(marker.pose, marker.color, self.current_position)
-    #
+    def cylinder_marker_received(self, msg):
+        for marker in msg.list:
+            if marker.id in self.cylinders:
+                self.cylinders[marker.id].pose = marker.pose
+                self.cylinders[marker.id].color = marker.color
+            else:
+                self.cylinders[marker.id] = Cylinder(marker.pose, marker.color, self.current_position)
+
     # def move_to_cylinder(self, color):
     #     for id in self.cylinders:
     #         if self.cylinders[id].color == color:
@@ -671,10 +675,12 @@ class move_controller():
 
     def face_dialogue(self, person):
         print("Starting dialogue")
+        print("Have you already been vaccinated?")
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
             return False
+        print("Who is your personal doctor?")
         self.speak("Who is your personal doctor?")
         doctor = self.recognize_speech()
         temp = doctor.split(" ")
@@ -684,6 +690,7 @@ class move_controller():
         if person.cylinder == "white":
             print("Color not detected")
         print(f"Person doctor: {person.cylinder}")
+        print("How many hours per week do you exercise?")
         self.speak("How many hours per week do you exercise?")
         person.training = int(self.recognize_speech())
         print(f"Person training: {person.training}")
