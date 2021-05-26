@@ -659,8 +659,11 @@ class move_controller():
             print("Color not detected")
         print(f"Person doctor: {person.cylinder}")
         self.speak("How many hours per week do you exercise?")
-        person.training = int(self.recognize_speech())
-        print(f"Person training: {person.training}")
+        try:
+            person.training = int(self.recognize_speech())
+            print(f"Person training: {person.training}")
+        except:
+            print(f"Sorry this is not a number") 
         return True
 
 

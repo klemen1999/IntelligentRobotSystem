@@ -387,7 +387,8 @@ class The_Ring:
                     #print("ploscina slike: " + str(cv_image.shape[0] * cv_image.shape[1]))
                     #print("plosina1: " +str(3.14 * e1[1][0]/2 * e1[1][1]/2))
                     #print("ploscina2: " +str(3.14 * e2[1][0]/2 * e2[1][1]/2))
-                    max_razlika = 9
+                    #max_razlika = 9
+                    max_razlika = 99999
                     if len(candidates)<1:
                         if (
                             abs(size-size2) < 50 and abs((e1[0][1]+e1[1][1]/2)-(e2[0][1]+e2[1][1]/2)) < max_razlika 
