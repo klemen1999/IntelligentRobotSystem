@@ -72,6 +72,11 @@ class DigitExtractor:
         if not ids is None:
             if len(ids)==4:
                 rospy.loginfo('4 Markers detected')
+                print(str(set(ids.ravel())))
+                # check that it did not detect two markers with the same id
+                if not len(set(ids.ravel())) == len(ids):
+                    #print("not unique")
+                    return
 
                 for idx in ids:
                     # Calculate the center point of all markers
@@ -79,7 +84,17 @@ class DigitExtractor:
                     cen_mar = np.mean(cors,axis=0)
                     cens_mars[idx[0]-1]=cen_mar
                     cen_point = np.mean(cens_mars,axis=0)
+                    #print("id: " + str(idx[0]))
+                    #print(str(cen_mar))
                     #print(cens_mars)
+                # check if id 3 and 4 are to the right of id 1 and 2
+                if (cens_mars[2][1] > cens_mars[0][1] or
+                    cens_mars[2][1] > cens_mars[1][1] or
+                    cens_mars[3][1] > cens_mars[0][1] or
+                    cens_mars[3][1] > cens_mars[1][1]):
+                    #print("nopeeeeeeeee")
+                    return
+                
                 for coords in cens_mars:
                     #  Map the correct source points
                     if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
@@ -145,6 +160,11 @@ class DigitExtractor:
                 #print(corners)
                 min_max_x = [cv_image.shape[0], 0]
                 min_max_y = [cv_image.shape[1], 0]
+                #print("IDS " + str(ids))
+                # check that it did not detect two markers with the same id
+                if not len(set(ids.ravel())) == len(ids):
+                    #print("not unique")
+                    return
                 for idx in ids:
                     # Calculate the center point of all markers
                     if len(corners) < idx[0]:
@@ -167,7 +187,25 @@ class DigitExtractor:
                         min_max_y[1] = cen_mar[1]
                     cen_point = np.mean(cens_mars,axis=0)
                 #print(min_max_x)
-                #print(min_max_y)
+                #print(min_max_y)he right of ids 1 and 2
+                # check if ids 3 and 4 are to t
+                if (
+                    (
+                    (set(ids.ravel()) == {1,2,3} or set(ids.ravel()) == {1,2,4}) 
+                    and (cens_mars[2][1] > cens_mars[0][1] or cens_mars[2][1] > cens_mars[1][1])
+                    )
+                    or
+                    (
+                        (set(ids.ravel()) == {1,3,4} or set(ids.ravel()) == {2,3,4}) and
+                        (
+                            cens_mars[1][1] > cens_mars[0][1] or
+                            cens_mars[2][1] > cens_mars[0][1]
+                        )
+                    )
+                    ):
+                    #print("nopeeeeeeeee")
+                    return
+
                 for coords in cens_mars:
                     #  Map the correct source points
                     if coords[0]<cen_point[0] and coords[1]<cen_point[1]:
@@ -182,9 +220,9 @@ class DigitExtractor:
                 #img_out = cv2.warpPerspective(cv_image, h, (img_out.shape[1],img_out.shape[0]))
                 #print(str(cv_image.shape))
                 #img_out = cv_image[int(min_max_x[0]):int(min_max_x[1]), int(min_max_y[0]):int(min_max_y[1])]
-                print(cv_image.shape[1])
-                print(int(min_max_y[0]))
-                print(int(min_max_y[1]))
+                #print(cv_image.shape[1])
+                #print(int(min_max_y[0]))
+                #print(int(min_max_y[1]))
                 razlika_y = min_max_y[1] - min_max_y[0]
                 razlika_x = min_max_x[1] - min_max_x[0]
                 img_out = cv_image[int(min_max_y[0]+razlika_y*0.1):int(min_max_y[1]-razlika_y*0.1), int(min_max_x[0]+razlika_x*0.1):int(min_max_x[1]-razlika_x*0.1)]
