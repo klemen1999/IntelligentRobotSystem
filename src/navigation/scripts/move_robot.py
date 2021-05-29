@@ -7,6 +7,8 @@ import tf2_ros
 import math
 import time
 import pandas as pd
+import numpy as np
+from math import sin, cos
 from pytimedinput import timedInput
 from nav_msgs.msg import Odometry
 from tf.transformations import *
@@ -614,6 +616,24 @@ class move_controller():
         marker.color = ColorRGBA(0.73, 0.25, 0.35, 1)
         self.marker_num += 1
         return marker
+
+    def move_left(self, distance):
+        print(f"Moving {distance}m to the left")
+        current_rotation = self.current_rotation
+        current_position = self.current_position
+
+        new_x = current_position.x - sin(current_rotation) * distance
+        new_y = current_position.y + cos(current_position) * distance
+
+        print(f"XY for moving left are x: {new_x} , y : {new_y}")
+        new_position = Pose()
+        new_position.position.z = 0
+        new_position.position.x = new_x
+        new_position.position.y = new_y
+
+        quaternion = quaternion_from_euler(0, 0, current_rotation)
+        self.set_orientation_from_quaternion_array(new_position, quaternion)
+        self.move(new_position)
 
     def move_around_cylinder(self, cylinder_position):
         print(f"Current rotation: {self.current_rotation} \n "
