@@ -269,6 +269,8 @@ class move_controller():
                     self.get_person_vaccine(self.persons[id], cylinder)
                     self.move_to_ring(self.persons[id].ring, self.persons[id])
                 continue
+            if self.persons[id].visited and self.persons[id].vaccinated:
+                continue
 
             request = FaceNormalRequest()
             request.markerID = id
@@ -276,6 +278,7 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
+            warnMask = response.hasMask
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
@@ -290,8 +293,9 @@ class move_controller():
                 self.move(pose)
 
                 if warn:
+                    print("Please keep social distance")
+                if warnMask:
                     print("Please put on your mask")
-
                 # start dialogue with the face
                 try:
                     anwsers = self.face_dialogue(self.persons[id])
@@ -304,13 +308,14 @@ class move_controller():
                 rotated_for_digits = False
                 # Rotate towards digits
                 if (self.wait_for_digits):
-                    self.rotate(10, 20, False)
+                    self.rotate(10, 40, False)
+                    print(f"Rotating to digits")
                     rotated_for_digits = True
 
                 timeout = time.time() + 5
 
                 while (self.wait_for_digits and time.time() < timeout):
-                    print("Waiting for digits")
+                    print(f"Waiting for digits {self.current_person_age}")
                     rospy.sleep(0.5)
 
                 # # Rotate towards qr code
@@ -379,10 +384,11 @@ class move_controller():
 
     def move_to_ring(self, color, person):
         # could be a problem with logic if ring can't be approached because we never try to approach it again
-        for id in self.rings:
-            if self.rings[id].color == color:
-                self.approach_ring(id, self.rings[id])
-                self.vaccinate(person)
+        copy_rings = self.rings.copy()
+        for id in copy_rings:
+            if copy_rings[id].color == color:
+                if self.approach_ring(id, copy_rings[id]):
+                    self.vaccinate(person)
         print("Ring with color:", color, "not detected yet.")
 
     def approach_ring(self, id, ring):
@@ -392,7 +398,7 @@ class move_controller():
         # don't approach markers with not enough occurances
         if not response.viable:
             print("Ring doesn't have enought occurances")
-            return
+            return False
         ring.color = response.color
         vector = [response.unitVector[0], response.unitVector[1]]
         # calculate pose for approach (try original and negative vector)
@@ -405,7 +411,7 @@ class move_controller():
             pose = pose2
         else:
             print("Can't reach the ring")
-            return
+            return False
         # adding marker to see next approach
         markerToRing = self.make_marker(pose)
         self.goal_publisher.publish(markerToRing)
@@ -416,6 +422,7 @@ class move_controller():
         print("Now under the ring")
         self.move_arm("ring")
         self.close_approach(distance, False)
+        return True
 
 
     def cylinder_marker_received(self, msg):
@@ -438,9 +445,11 @@ class move_controller():
             if self.cylinders[id].visited:
                 person = self.person_by_cylinder(self.cylinders[id].color)
                 if person and not person.vaccinated:
+                    print(f"cylinder id: {id}, person: {person}")
                     self.get_person_vaccine(person, self.cylinders[id])
                     self.move_to_ring(person.ring, person)
                 continue
+            print(f"po continue {id}")
             # calculating pose for approach
             request = CylinderStatusRequest()
             request.markerID = id
@@ -455,13 +464,12 @@ class move_controller():
             if self.check_if_reachable(pose):
                 # adding marker to see next approach
                 markerToCylinder = self.make_marker(pose)
-                self.wait_for_qr = True
                 self.goal_publisher.publish(markerToCylinder)
                 print("Moving to approach the", color, "cylinder")
                 self.move(pose)
-                print(f"Saying hello to {color} cylinder and extending arm")
+                self.wait_for_qr = True
+                print(f"Saying hello to {color} cylinder")
                 self.speak(f"Hello {color} cylinder")
-
                 marker_relative_to_me = self.marker_relative_to_robot(pose)
                 where_am_i_rotated = self.where_am_i_rotated()
                 print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
