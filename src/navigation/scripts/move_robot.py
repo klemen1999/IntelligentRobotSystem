@@ -131,8 +131,8 @@ class move_controller():
             pose, rotDeg, clockwise = point
             if not self.check_if_reachable(pose):
                 continue
-            if self.point_already_visited(pose):
-                continue
+            #if self.point_already_visited(pose):
+            #    continue
             print("---\nMoving to next map goal")
             marker = self.make_marker(pose)
             self.goal_publisher.publish(marker)
@@ -261,17 +261,17 @@ class move_controller():
             print("No faces detected yet")
 
     def move_to_faces(self):
-
-        for id in self.persons:
-            if self.persons[id].visited and not self.persons[id].vaccinated:
-                cylinder = self.cylinder_by_person(self.persons[id].cylinder)
+        copy_persons = self.persons.copy()
+        for id in copy_persons:
+            if copy_persons[id].visited and not copy_persons[id].vaccinated:
+                cylinder = self.cylinder_by_person(copy_persons[id].cylinder)
                 print(f"Cylinder: {cylinder}")
-                if cylinder:
+                if cylinder and cylinder.visited:
                     print(f"Calculating the best vaccine for person")
-                    self.get_person_vaccine(self.persons[id], cylinder)
-                    self.move_to_ring(self.persons[id].ring, self.persons[id])
+                    self.get_person_vaccine(copy_persons[id], cylinder)
+                    self.move_to_ring(copy_persons[id].ring, copy_persons[id])
                 continue
-            if self.persons[id].visited and self.persons[id].vaccinated:
+            if copy_persons[id].visited and copy_persons[id].vaccinated:
                 continue
 
             request = FaceNormalRequest()
@@ -284,7 +284,7 @@ class move_controller():
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
-            pose = self.approach_transform(self.persons[id].pose, normalVec, self.distance_to_face)
+            pose = self.approach_transform(copy_persons[id].pose, normalVec, self.distance_to_face)
             if self.check_if_reachable(pose):
                 # adding marker to see next approach
                 markerToFace = self.make_marker(pose)
@@ -300,7 +300,7 @@ class move_controller():
                     print("Please put on your mask")
                 # start dialogue with the face
                 try:
-                    anwsers = self.face_dialogue(self.persons[id])
+                    anwsers = self.face_dialogue(copy_persons[id])
                 except Exception as err:
                     print(f"Possible error: {err}")
 
@@ -336,7 +336,7 @@ class move_controller():
                 print(self.persons[id])
                 cylinder = self.cylinder_by_person(self.persons[id].cylinder)
                 print(f"Cylinder: {cylinder}")
-                if cylinder:
+                if cylinder and cylinder.visited:
                     print(f"Calculating the best vaccine for person")
                     self.get_person_vaccine(self.persons[id], cylinder)
                     self.move_to_ring(self.persons[id].ring, self.persons[id])
@@ -442,13 +442,14 @@ class move_controller():
             print("No cylinders detected yet")
 
     def move_to_cylinders(self):
-        for id in self.cylinders:
+        copy_cylinders = self.cylinders.copy()
+        for id in copy_cylinders:
             # check if you already visited the marker
-            if self.cylinders[id].visited:
-                person = self.person_by_cylinder(self.cylinders[id].color)
+            if copy_cylinders[id].visited:
+                person = self.person_by_cylinder(copy_cylinders[id].color)
                 if person and not person.vaccinated:
                     print(f"cylinder id: {id}, person: {person}")
-                    self.get_person_vaccine(person, self.cylinders[id])
+                    self.get_person_vaccine(person, copy_cylinders[id])
                     self.move_to_ring(person.ring, person)
                 continue
             print(f"po continue {id}")
@@ -719,6 +720,7 @@ class move_controller():
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
+            person.vaccinated = True
             return False
         self.speak("Who is your personal doctor?")
         doctor = self.recognize_speech()
