@@ -700,6 +700,7 @@ class move_controller():
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
+            person.vaccinated = True
             return False
         self.speak("Who is your personal doctor?")
         doctor = self.recognize_speech()
