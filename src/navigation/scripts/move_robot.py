@@ -290,9 +290,9 @@ class move_controller():
                 markerToFace = self.make_marker(pose)
                 self.goal_publisher.publish(markerToFace)
                 self.wait_for_digits = True
-                self.wait_for_qr = True
                 print("Moving to approach the face")
                 self.move(pose)
+                self.wait_for_qr = True
 
                 if warn:
                     print("Please keep social distance")
@@ -308,17 +308,12 @@ class move_controller():
                     print("We can skip this person")
                     continue
                 rotated_for_digits = False
-                # Rotate towards digits
-                if (self.wait_for_digits):
-                    self.rotate(10, 40, False)
-                    print(f"Rotating to digits")
-                    rotated_for_digits = True
+                # Go left to face the digits
+                if self.wait_for_digits:
+                    print("Moving left to get the digits")
+                    self.move_left(0.1, copy_persons[id].pose)
 
-                timeout = time.time() + 5
 
-                while (self.wait_for_digits and time.time() < timeout):
-                    print(f"Waiting for digits {self.current_person_age}")
-                    rospy.sleep(0.5)
 
                 # # Rotate towards qr code
                 # if (self.wait_for_qr):
@@ -618,23 +613,33 @@ class move_controller():
         self.marker_num += 1
         return marker
 
-    def move_left(self, distance):
+    def move_left(self, distance, marker):
         print(f"Moving {distance}m to the left")
+        current_pose = self.current_position
+        current_position = self.current_position.position
         current_rotation = self.current_rotation
-        current_position = self.current_position
 
-        new_x = current_position.x - sin(current_rotation) * distance
-        new_y = current_position.y + cos(current_position) * distance
+        relative_position_to_marker = self.marker_relative_to_robot(marker)
+        new_pose = Pose()
+        new_pose.orientation = current_pose.orientation
+        new_pose.position.z = 0
 
-        print(f"XY for moving left are x: {new_x} , y : {new_y}")
-        new_position = Pose()
-        new_position.position.z = 0
-        new_position.position.x = new_x
-        new_position.position.y = new_y
+        if relative_position_to_marker == "UP":
+            new_pose.position.y = current_position.y + distance
+            new_pose.position.x = current_position.x
+        elif relative_position_to_marker == "DOWN":
+            new_pose.position.y = current_position.y - distance
+            new_pose.position.x = current_position.x
+        elif relative_position_to_marker == "RIGHT":
+            new_pose.position.x = current_position.x + distance
+            new_pose.position.y = current_position.y
+        elif relative_position_to_marker == "LEFT":
+            new_pose.position.x = current_position.x + distance
+            new_pose.position.y = current_position.y
 
-        quaternion = quaternion_from_euler(0, 0, current_rotation)
-        self.set_orientation_from_quaternion_array(new_position, quaternion)
-        self.move(new_position)
+        print(f"Current XY is x : {current_position.x} , y : {current_position.y}")
+        print(f"New XY is x : {new_pose.position.x} , y : {new_pose.position.y}")
+        self.move(new_pose)
 
     def move_around_cylinder(self, cylinder_position):
         print(f"Current rotation: {self.current_rotation} \n "
