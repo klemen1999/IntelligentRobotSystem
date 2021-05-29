@@ -662,12 +662,12 @@ class move_controller():
                 pose.position.x = marker_position.x - distance
                 quaternion = quaternion_from_euler(0, 0, 0)
         else:
-            pose.orientation.x = marker_position.x
+            pose.position.x = marker_position.x
             if "L" in orientation:
-                pose.position.y = marker_position.y + distance
+                pose.position.y = marker_position.y - distance
                 quaternion = quaternion_from_euler(0, 0, (math.pi / 2))
             else:
-                pose.position.y = marker_position.y - distance
+                pose.position.y = marker_position.y + distance
                 quaternion = quaternion_from_euler(0, 0, (-math.pi / 2))
 
         self.set_orientation_from_quaternion_array(pose, quaternion)
