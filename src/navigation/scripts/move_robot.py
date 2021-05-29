@@ -305,6 +305,7 @@ class move_controller():
                 if not anwsers:
                     print("We can skip this person")
                     self.persons[id].vaccinated = True
+                    self.persons[id].visited = True
                     continue
                 rotated_for_digits = False
                 # Rotate towards digits
