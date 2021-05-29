@@ -304,6 +304,7 @@ class move_controller():
 
                 if not anwsers:
                     print("We can skip this person")
+                    self.persons[id].vaccinated = True
                     continue
                 rotated_for_digits = False
                 # Rotate towards digits
@@ -724,6 +725,7 @@ class move_controller():
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = input("Anwser: ")
         if alreadyVaccinated == "yes":
+            person.vaccinated = True
             self.finished += 1
             return False
         self.speak("Who is your personal doctor?")
