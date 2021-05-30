@@ -88,12 +88,12 @@ class DigitExtractor:
                     #print(str(cen_mar))
                     #print(cens_mars)
                 # check if id 3 and 4 are to the right of id 1 and 2
-                if (cens_mars[2][1] > cens_mars[0][1] or
-                    cens_mars[2][1] > cens_mars[1][1] or
-                    cens_mars[3][1] > cens_mars[0][1] or
-                    cens_mars[3][1] > cens_mars[1][1]):
-                    #print("nopeeeeeeeee")
-                    return
+                # if (cens_mars[2][1] > cens_mars[0][1] or
+                #     cens_mars[2][1] > cens_mars[1][1] or
+                #     cens_mars[3][1] > cens_mars[0][1] or
+                #     cens_mars[3][1] > cens_mars[1][1]):
+                #     #print("nopeeeeeeeee")
+                #     return
                 
                 for coords in cens_mars:
                     #  Map the correct source points

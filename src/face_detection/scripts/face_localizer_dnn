@@ -193,7 +193,7 @@ class face_localizer_dnn:
                 top2 = np.argsort(hist[0])[-2:]
                 topReversed = top2[::-1] #reverse array so top color is at top2[0]
 
-                if hist[0][topReversed[0]] / hist[0][topReversed[1]] > 2:
+                if hist[0][topReversed[0]] / hist[0][topReversed[1]] > 1.5:
                     hasMask = True
                 else:
                     hasMask = False

@@ -459,7 +459,7 @@ class move_controller():
             if not response.viable:
                 continue
             angleAdd = self.deg_to_radian(0)
-            pose = self.approach_transform_original(self.current_position, self.cylinders[id].pose,
+            pose = self.approach_transform_original(self.cylinders[id].seen_from, self.cylinders[id].pose,
                                                     self.distance_to_cylinder, angleAdd)
             if self.check_if_reachable(pose):
                 # adding marker to see next approach
@@ -729,6 +729,9 @@ class move_controller():
         if alreadyVaccinated == "yes":
             person.vaccinated = True
             return False
+        else:
+            person.vaccinated = False
+
         self.speak("Who is your personal doctor?")
         doctor = self.recognize_speech()
         temp = doctor.split(" ")
@@ -744,16 +747,37 @@ class move_controller():
             print(f"Person training: {person.training}")
         except:
             print(f"Sorry this is not a number")
+
+        if person.vaccinated is None:
+            print("Answer for person vaccinated not found please enter it manually")
+            self.dialog_vacc_debug(person)
+        if not person.cylinder or person.cylinder == 'white':
+            print("Answer for person doctor not found please enter it manually")
+            self.dialog_doctor_debug(person)
+        if not person.training:
+            print("Answer for person workout not found please enter it manually")
+            self.dialog_workout_debug(person)
+
         return True
 
 
     def face_dialogue_debug(self, person):
+        self.dialog_vacc_debug(person)
+        if person.vaccinated:
+            return False
+
+        self.dialog_doctor_debug(person)
+        self.dialog_workout_debug(person)
+        return True
+
+    def dialog_vacc_debug(self, person):
         self.speak("Have you already been vaccinated?")
         alreadyVaccinated = input("Anwser: ")
         if alreadyVaccinated == "yes":
             person.vaccinated = True
             self.finished += 1
-            return False
+
+    def dialog_doctor_debug(self, person):
         self.speak("Who is your personal doctor?")
         doctor = input("Anwser: ")
         temp = doctor.split(" ")
@@ -762,18 +786,19 @@ class move_controller():
                 person.cylinder = word.lower()
         if person.cylinder == "white":
             print("Color not detected")
+
+    def dialog_workout_debug(self, person):
         print(f"Person doctor: {person.cylinder}")
         self.speak("How many hours per week do you exercise?")
         person.training = int(input("Anwser: "))
         print(f"Person training: {person.training}")
-        return True
 
     def recognize_speech(self):
         with self.mic as source:
             print('Adjusting mic for ambient noise...')
             self.sr.adjust_for_ambient_noise(source)
             print('SPEAK NOW!')
-            audio = self.sr.listen(source)
+            audio = self.sr.listen(source, phrase_time_limit=10)
 
         print('I am now processing the sounds you made.')
         recognized_text = ''

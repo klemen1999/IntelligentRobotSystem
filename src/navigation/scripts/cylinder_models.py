@@ -5,6 +5,7 @@ from io import StringIO
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.utils import shuffle
 from sklearn import metrics
+from time import sleep
 
 
 def build_model_from_url(url):
@@ -13,7 +14,10 @@ def build_model_from_url(url):
     return build_model(DecisionTreeClassifier(), train, test)
 
 
-def download_file_from_url(url):
+def download_file_from_url(url, retries=3):
+    if retries <= 0:
+        print("Unable to download model!!!!!!!!!!!!!!!!")
+        return
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -21,8 +25,10 @@ def download_file_from_url(url):
             df = pd.read_csv(data, sep=',', names=["Age", "Workout", "Vaccine"])
             return df
         print("Error downloading data")
-    except ConnectionError as err:
+    except Exception as err:
         print(f"Connection error: {err}")
+        sleep(2)
+        download_file_from_url(url, retries - 1)
 
 
 def split_data(df):
