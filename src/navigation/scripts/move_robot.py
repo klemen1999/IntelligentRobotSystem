@@ -708,9 +708,9 @@ class move_controller():
 
     def face_dialogue(self, person):
         print("Starting dialogue")
-        userInput, timedOut = timedInput("Press d to enter debug mode")
+        userInput, timedOut = timedInput("Press d to enter debug mode ")
         if timedOut:
-            if userInput=="d":
+            if userInput == "d":
                 return self.face_dialogue_debug(person)
         else:
             if userInput == "d":
