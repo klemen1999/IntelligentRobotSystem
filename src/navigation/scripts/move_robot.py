@@ -163,21 +163,6 @@ class move_controller():
                 print("I'm done")
                 return
 
-            '''
-            if len(self.visitedCylinders) < 4:
-                print("Checking for cylinders to approach")
-                self.check_cylinder_approach()
-
-            
-            if len(self.visitedRings) < 4:
-                # check for new rings to approach
-                print("Checking for rings to approach")
-                self.check_ring_approach()
-            
-            if len(self.visitedRings) >= 4 and len(self.visitedCylinders) >= 4:
-                print("Found everything. I'm gonna stop now.")
-                return
-            '''
         rospy.loginfo("End this cycle")
         self.visitedPoints = []
         self.main_loop()
@@ -261,17 +246,18 @@ class move_controller():
             print("No faces detected yet")
 
     def move_to_faces(self):
-        copy_persons = self.persons.copy()
-        for id in copy_persons:
-            if copy_persons[id].visited and not copy_persons[id].vaccinated:
-                cylinder = self.cylinder_by_person(copy_persons[id].cylinder)
-                print(f"Cylinder: {cylinder}")
-                if cylinder and cylinder.visited:
-                    print(f"Calculating the best vaccine for person")
-                    self.get_person_vaccine(copy_persons[id], cylinder)
-                    self.move_to_ring(copy_persons[id].ring, copy_persons[id])
-                continue
-            if copy_persons[id].visited and copy_persons[id].vaccinated:
+        # get list of keys and than loop this list
+        keysList = self.persons.keys()
+        for id in keysList:
+            # if person is visited but not vaccinated try to vaccinate and then continue
+            if self.persons[id].visited:
+                if not self.persons[id].vaccinated:
+                    cylinder = self.cylinder_by_person(self.persons[id].cylinder)
+                    print(f"Cylinder: {cylinder}")
+                    if cylinder and cylinder.visited:
+                        print(f"Calculating the best vaccine for person")
+                        self.get_person_vaccine(self.persons[id], cylinder)
+                        self.move_to_ring(self.persons[id].ring, self.persons[id])
                 continue
 
             request = FaceNormalRequest()
@@ -284,7 +270,7 @@ class move_controller():
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
-            pose = self.approach_transform(copy_persons[id].pose, normalVec, self.distance_to_face)
+            pose = self.approach_transform(self.persons[id].pose, normalVec, self.distance_to_face)
             if self.check_if_reachable(pose):
                 # adding marker to see next approach
                 markerToFace = self.make_marker(pose)
@@ -300,7 +286,7 @@ class move_controller():
                     print("Please put on your mask")
                 # start dialogue with the face
                 try:
-                    anwsers = self.face_dialogue(copy_persons[id])
+                    anwsers = self.face_dialogue(self.persons[id])
                 except Exception as err:
                     print(f"Possible error: {err}")
 
@@ -309,11 +295,12 @@ class move_controller():
                     self.persons[id].vaccinated = True
                     self.persons[id].visited = True
                     continue
+
                 rotated_for_digits = False
                 # Go left to face the digits
                 if self.wait_for_digits:
                     print("Moving left to get the digits")
-                    self.move_left(0.1, copy_persons[id].pose)
+                    self.move_left(0.1, self.persons[id].pose)
 
 
 
@@ -338,7 +325,6 @@ class move_controller():
                     self.get_person_vaccine(self.persons[id], cylinder)
                     self.move_to_ring(self.persons[id].ring, self.persons[id])
                     pass
-
             else:
                 print("Can't reach the face")
 
@@ -382,11 +368,10 @@ class move_controller():
                 self.rings[marker.id] = Ring(marker.pose, marker.color)
 
     def move_to_ring(self, color, person):
-        # could be a problem with logic if ring can't be approached because we never try to approach it again
-        copy_rings = self.rings.copy()
-        for id in copy_rings:
-            if copy_rings[id].color == color:
-                if self.approach_ring(id, copy_rings[id]):
+        keysList = self.rings.keys()
+        for id in keysList:
+            if self.rings[id].color == color:
+                if self.approach_ring(id, self.rings[id]):
                     self.vaccinate(person)
         print("Ring with color:", color, "not detected yet.")
 
@@ -439,14 +424,14 @@ class move_controller():
             print("No cylinders detected yet")
 
     def move_to_cylinders(self):
-        copy_cylinders = self.cylinders.copy()
-        for id in copy_cylinders:
+        keysList = self.cylinders.keys()
+        for id in keysList:
             # check if you already visited the marker
-            if copy_cylinders[id].visited:
-                person = self.person_by_cylinder(copy_cylinders[id].color)
+            if self.cylinders[id].visited:
+                person = self.person_by_cylinder(self.cylinders[id].color)
                 if person and not person.vaccinated:
                     print(f"cylinder id: {id}, person: {person}")
-                    self.get_person_vaccine(person, copy_cylinders[id])
+                    self.get_person_vaccine(person, self.cylinders[id])
                     self.move_to_ring(person.ring, person)
                 continue
             print(f"po continue {id}")
@@ -459,56 +444,62 @@ class move_controller():
             if not response.viable:
                 continue
             angleAdd = self.deg_to_radian(0)
-            pose = self.approach_transform_original(self.cylinders[id].seen_from, self.cylinders[id].pose,
+            pose1 = self.approach_transform_original(self.current_position, self.cylinders[id].pose,
                                                     self.distance_to_cylinder, angleAdd)
-            if self.check_if_reachable(pose):
-                # adding marker to see next approach
-                markerToCylinder = self.make_marker(pose)
-                self.goal_publisher.publish(markerToCylinder)
-                print("Moving to approach the", color, "cylinder")
-                self.move(pose)
-                self.wait_for_qr = True
-                print(f"Saying hello to {color} cylinder")
-                self.speak(f"Hello {color} cylinder")
-                marker_relative_to_me = self.marker_relative_to_robot(pose)
-                where_am_i_rotated = self.where_am_i_rotated()
-                print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
-
-                timeout = time.time() + 2
-                while self.wait_for_qr and time.time() < timeout:
-                    print("Waiting for qr code")
-                    rospy.sleep(0.25)
-
-                if self.wait_for_qr:
-                    print("Didn't find qr code on cylinder, trying to move around it")
-                    self.move_around_cylinder(self.cylinders[id].pose)
-
-                model = None
-
-                if not self.wait_for_qr and self.current_qr_data != '':
-                    print("Building a model")
-                    model = build_model_from_url(self.current_qr_data)
-                    self.cylinders[id].model = model
-                    print("Finished model")
-                    self.current_qr_data = ''
-                else:
-                    self.wait_for_qr = False
-                    print("Unable to find qr code")
-
-                if not model:
-                    print("Model not built, ending function")
-                    return
-
-                self.cylinders[id].visited = True
-                # check if this cylinder is needed
-                person = self.person_by_cylinder(self.cylinders[id].color)
-                if person and not person.vaccinated:
-                    self.get_person_vaccine(person, self.cylinders[id])
-                    self.move_to_ring(person.ring, person)
-                    pass
-
+            pose2 = self.approach_transform_original(self.cylinders[id].seen_from, self.cylinders[id].pose,
+                                                    self.distance_to_cylinder, angleAdd)
+            if self.check_if_reachable(pose1):
+                pose = pose1
+            elif self.check_if_reachable(pose2):
+                pose = pose2
             else:
                 print("Can't reach the cylinder")
+                return
+
+            # adding marker to see next approach
+            markerToCylinder = self.make_marker(pose)
+            self.goal_publisher.publish(markerToCylinder)
+            print("Moving to approach the", color, "cylinder")
+            self.move(pose)
+            self.wait_for_qr = True
+            print(f"Saying hello to {color} cylinder")
+            self.speak(f"Hello {color} cylinder")
+            marker_relative_to_me = self.marker_relative_to_robot(pose)
+            where_am_i_rotated = self.where_am_i_rotated()
+            print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
+
+            timeout = time.time() + 2
+            while self.wait_for_qr and time.time() < timeout:
+                print("Waiting for qr code")
+                rospy.sleep(0.25)
+
+            if self.wait_for_qr:
+                print("Didn't find qr code on cylinder, trying to move around it")
+                self.move_around_cylinder(self.cylinders[id].pose)
+
+            model = None
+
+            if not self.wait_for_qr and self.current_qr_data != '':
+                print("Building a model")
+                model = build_model_from_url(self.current_qr_data)
+                self.cylinders[id].model = model
+                print("Finished model")
+                self.current_qr_data = ''
+            else:
+                self.wait_for_qr = False
+                print("Unable to find qr code")
+
+            if not model:
+                print("Model not built, ending function")
+                return
+
+            self.cylinders[id].visited = True
+            # check if this cylinder is needed
+            person = self.person_by_cylinder(self.cylinders[id].color)
+            if person and not person.vaccinated:
+                self.get_person_vaccine(person, self.cylinders[id])
+                self.move_to_ring(person.ring, person)
+
 
     def get_person_vaccine(self, person, cylinder):
         person_data = pd.DataFrame({'Age': [person.age], 'Workout': [person.training]})
