@@ -247,7 +247,7 @@ class move_controller():
 
     def move_to_faces(self):
         # get list of keys and than loop this list
-        keysList = self.persons.keys()
+        keysList = list(self.persons)
         for id in keysList:
             # if person is visited but not vaccinated try to vaccinate and then continue
             if self.persons[id].visited:
@@ -368,7 +368,7 @@ class move_controller():
                 self.rings[marker.id] = Ring(marker.pose, marker.color)
 
     def move_to_ring(self, color, person):
-        keysList = self.rings.keys()
+        keysList = list(self.rings)
         for id in keysList:
             if self.rings[id].color == color:
                 if self.approach_ring(id, self.rings[id]):
@@ -424,7 +424,7 @@ class move_controller():
             print("No cylinders detected yet")
 
     def move_to_cylinders(self):
-        keysList = self.cylinders.keys()
+        keysList = list(self.cylinders)
         for id in keysList:
             # check if you already visited the marker
             if self.cylinders[id].visited:
