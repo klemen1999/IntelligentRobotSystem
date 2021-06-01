@@ -282,7 +282,7 @@ class move_controller():
 
                 if warn:
                     #print("Please keep social distance")
-                    self.speak("Please keep social distance)
+                    self.speak("Please keep social distance")
                 if warnMask:
                     #print("Please put on your mask")
                     self.speak("Please put on your mask")

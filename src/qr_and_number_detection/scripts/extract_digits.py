@@ -27,7 +27,7 @@ print(params.adaptiveThreshWinSizeStep)
 
 # You can set these parameters to get better marker detections
 params.adaptiveThreshConstant = 25
-adaptiveThreshWinSizeStep = 2
+params.adaptiveThreshWinSizeStep = 2
 
 
 class DigitExtractor:
