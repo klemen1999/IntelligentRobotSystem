@@ -281,9 +281,11 @@ class move_controller():
                 self.wait_for_qr = True
 
                 if warn:
-                    print("Please keep social distance")
+                    #print("Please keep social distance")
+                    self.speak("Please keep social distance)
                 if warnMask:
-                    print("Please put on your mask")
+                    #print("Please put on your mask")
+                    self.speak("Please put on your mask")
                 # start dialogue with the face
                 try:
                     anwsers = self.face_dialogue(self.persons[id])
