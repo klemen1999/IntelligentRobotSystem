@@ -65,6 +65,9 @@ class marker_organizer():
             newNormal = np.array([vecLeftRight[1], -vecLeftRight[0]])
             newUnitNormal = newNormal / np.linalg.norm(newNormal)
 
+            gotMatch = False
+            faceMatched = None
+            distanceMatched = 10000000
             for i, face in enumerate(self.faces):
                 numMatches = 0
                 # check for x and y
@@ -79,6 +82,16 @@ class marker_organizer():
                     numMatches += 1
                 # we have new detection of known face
                 if numMatches == 3:
+                    #izracunaj za koliko se popravi marker (razlika x + razlika y)
+                    razlika = (
+                            abs(face.pose.position.x - ((face.pose.position.x * face.occurances
+                                + poseMiddle.position.x) / (face.occurances + 1))) 
+                                + 
+                            abs(face.pose.position.y - (face.pose.position.y * face.occurances
+                                + poseMiddle.position.y) / (face.occurances + 1))
+                            )
+                    """
+                    # ne tukaj popravljat ker potem lahko pride v več kot en cluster
                         face.pose.position.x = (face.pose.position.x * face.occurances
                                            + poseMiddle.position.x) / (face.occurances + 1)
                         face.pose.position.y = (face.pose.position.y * face.occurances
@@ -86,17 +99,38 @@ class marker_organizer():
                         face.normal = (face.normal * face.occurances + newUnitNormal) / \
                                       (face.occurances + 1)
                         face.occurances += 1
+                        
                         if hasMask:
                             face.maskArray[0] += 1
                         else:
                             face.maskArray[1] += 1
+                    """
+                    gotMatch = True
+                    if razlika < distanceMatched:
+                        #print("better match face")
+                        faceMatched = face
+                        distanceMatched = razlika
 
                         break
 
                 else:  # didn't match on all -> could be new face
                     noMatch += 1
+            if gotMatch:
+                # popravi obstojec marker
+                faceMatched.pose.position.x = (faceMatched.pose.position.x * faceMatched.occurances
+                                           + poseMiddle.position.x) / (faceMatched.occurances + 1)
+                faceMatched.pose.position.y = (faceMatched.pose.position.y * faceMatched.occurances
+                                           + poseMiddle.position.y) / (faceMatched.occurances + 1)
+                faceMatched.normal = (faceMatched.normal * faceMatched.occurances + newUnitNormal) / \
+                                      (faceMatched.occurances + 1)
+                faceMatched.occurances += 1
+                        
+                if hasMask:
+                    faceMatched.maskArray[0] += 1
+                else:
+                    faceMatched.maskArray[1] += 1
 
-            if noMatch == len(self.faces):  # definetly new face
+            elif noMatch == len(self.faces):  # definetly new face
                 print("Possible new face")
                 status_message = ImageStatus()
                 status_message.status = "NEW_FACE"
