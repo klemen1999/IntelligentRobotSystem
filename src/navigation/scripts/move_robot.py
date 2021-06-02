@@ -277,10 +277,10 @@ class move_controller():
                 # adding marker to see next approach
                 markerToFace = self.make_marker(pose)
                 self.goal_publisher.publish(markerToFace)
-                self.wait_for_digits = True
                 print("Moving to approach the face")
                 self.move(pose)
                 self.wait_for_qr = True
+                self.wait_for_digits = True
 
                 if warn:
                     self.speak("Please keep social distance")
@@ -319,6 +319,9 @@ class move_controller():
                     self.get_person_vaccine(self.persons[id], cylinder)
                     self.move_to_ring(self.persons[id].ring, self.persons[id])
                     pass
+
+                self.wait_for_qr = False
+                self.wait_for_digits = False
             else:
                 print("Can't reach the face")
 
@@ -438,7 +441,7 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
-            angleAdd = self.deg_to_radian(0)
+            angleAdd = self.deg_to_radian(20)
             pose1 = self.approach_transform_original(self.current_position, self.cylinders[id].pose,
                                                     self.distance_to_cylinder, angleAdd)
             pose2 = self.approach_transform_original(self.cylinders[id].seen_from, self.cylinders[id].pose,

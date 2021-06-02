@@ -1,4 +1,3 @@
 <launch>
     <node name="face_localizer_dnn" pkg="face_detection" type="face_localizer_dnn"/>
-    <node name="face_markers" pkg="face_detection" type="face_markers.py"/>
 </launch>

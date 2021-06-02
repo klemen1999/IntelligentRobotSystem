@@ -111,7 +111,6 @@ class marker_organizer():
                         faceMatched = face
                         distanceMatched = razlika
 
-                        break
 
                 else:  # didn't match on all -> could be new face
                     noMatch += 1
