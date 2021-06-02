@@ -481,9 +481,9 @@ class move_controller():
                 print("Waiting for qr code")
                 rospy.sleep(0.25)
 
-            # if self.wait_for_qr:
-            #     print("Didn't find qr code on cylinder, trying to move around it")
-            #     self.move_around_cylinder(self.cylinders[id].pose)
+            if self.wait_for_qr:
+                print("Didn't find qr code on cylinder, trying to move around it")
+                self.move_around_cylinder(self.cylinders[id].pose)
 
             model = None
 
@@ -652,7 +652,10 @@ class move_controller():
         print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
         new_point = self.calculate_new_point(cylinder_position.position, marker_relative_to_me, where_am_i_rotated, 0.6)
         print(f"New point\n{new_point}")
-        self.move(new_point)
+        if self.check_if_reachable(new_point):
+            self.move(new_point)
+        else:
+            print("Unable to move around cylinder")
 
     def marker_relative_to_robot(self, marker_position):
         marker = marker_position.position
