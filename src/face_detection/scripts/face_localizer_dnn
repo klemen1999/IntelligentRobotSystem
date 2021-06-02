@@ -38,6 +38,8 @@ class face_localizer_dnn:
         self.face_net = cv2.dnn.readNetFromCaffe(os.path.join(path, 'deploy.prototxt.txt'), os.path.join(path,
                             'res10_300x300_ssd_iter_140000.caffemodel'))
 
+        self.mouth_detector = cv2.CascadeClassifier(os.path.join(path, 'haarcascade_smile.xml'))
+
         # A help variable for holding the dimensions of the image
 
         self.dims = (0, 0, 0)
@@ -186,20 +188,17 @@ class face_localizer_dnn:
                 # cv2.imshow("ImWindow", face_region)
                 # cv2.waitKey(1)
 
-                halfSize = round(face_region.shape[0] / 2)
-                halfImage = face_region[halfSize:, :]
-                grayImage = cv2.cvtColor(halfImage, cv2.COLOR_RGB2GRAY)
-                hist = exposure.histogram(grayImage)
-                # hist[0][0] = hist[0][-1] = 0
-                top2 = np.argsort(hist[0])[-2:]
-                topReversed = top2[::-1] #reverse array so top color is at top2[0]
+                gray = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
+                grayEqualized = cv2.equalizeHist(gray)
+                mouthRect = self.mouth_detector.detectMultiScale(
+                    grayEqualized, scaleFactor=1.1, minNeighbors=10,
+                    minSize=(15, 15), flags=cv2.CASCADE_SCALE_IMAGE)
 
-                #print(f"Srklj razmerje {hist[0][topReversed[0]] / hist[0][topReversed[1]]}")
-
-                if hist[0][topReversed[0]] / hist[0][topReversed[1]] > 2.5:
+                if len(mouthRect) == 0:
                     hasMask = True
                 else:
                     hasMask = False
+
 
                 # cv2.imshow("test", grayImage)
                 # cv2.waitKey(1)
@@ -210,6 +209,7 @@ class face_localizer_dnn:
                                                                     x2]))
 
                 print('Distance to face', face_distance)
+                print("Has mask:", hasMask)
 
                 # Get the time that the depth image was recieved
 
