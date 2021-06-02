@@ -5,7 +5,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import PointStamped, Vector3, Pose, Point
 from std_msgs.msg import ColorRGBA
 from face_detection.msg import ImageStatus, FacePoses, FaceDetection, FacesList
-from face_detection.srv import FaceNormal, FaceNormalResponse
+from face_detection.srv import FaceNormal, FaceNormalResponse, FaceMask, FaceMaskResponse
 from nav_msgs.msg import Odometry
 from navigation.msg import CalibrationMsg
 import numpy as np
@@ -31,6 +31,7 @@ class marker_organizer():
         self.img_status_pub = rospy.Publisher('face_status', ImageStatus, queue_size=10)
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
         self.normal_srv = rospy.Service("face_normal", FaceNormal, self.get_normal)
+        self.mask_srv = rospy.Service("face_mask", FaceMask, self.get_mask)
         self.buffer = []  # buffer to catch poses from face_pose topic
         self.faces = []
         self.marker_array = MarkerArray()
@@ -169,6 +170,12 @@ class marker_organizer():
         marker.color = ColorRGBA(0, 1, 0, 1) if face.occurances >= self.occuranceThresh \
             else ColorRGBA(1, 0, 0, 1)
         return marker
+    def get_mask(self, request):
+        for face in self.faces:
+            if request.markerID == face.markerID:
+                msg = FaceMaskResponse()
+                msg.hasMask = True if face.maskArray[0] >= face.maskArray[1] else False
+                return msg
 
     def get_normal(self, request):
         print("Got unitNormal request for marker id:", request.markerID)
@@ -177,7 +184,7 @@ class marker_organizer():
                 msg = FaceNormalResponse()
                 msg.unitNormal = np.copy(face.normal)
                 msg.viable = True if face.occurances >= self.occuranceThresh else False
-                msg.hasMask = True if face.maskArray[0] >= face.maskArray[1] else False
+                #msg.hasMask = True if face.maskArray[0] >= face.maskArray[1] else False
                 msg.warn = self.check_if_too_close(face)
                 return msg
 

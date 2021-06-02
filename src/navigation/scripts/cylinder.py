@@ -13,7 +13,6 @@ class Cylinder:
 
     def __str__(self):
         return f"\ncolor: {self.color}\n" \
-               f"\nvisited: {self.visited}\n" \
-               f"recommended_ring: {self.recommended_ring}\n"
+               f"\nvisited: {self.visited}\n"
 
 

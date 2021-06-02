@@ -26,6 +26,7 @@ add_message_files(
 add_service_files(
   FILES
   FaceNormal.srv
+  FaceMask.srv
  )
 
 generate_messages(

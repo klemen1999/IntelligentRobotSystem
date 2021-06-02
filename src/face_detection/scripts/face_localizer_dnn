@@ -193,7 +193,7 @@ class face_localizer_dnn:
                 mouthRect = self.mouth_detector.detectMultiScale(
                     grayEqualized, scaleFactor=1.1, minNeighbors=10,
                     minSize=(15, 15), flags=cv2.CASCADE_SCALE_IMAGE)
-
+                print("len mouth rect " + str(len(mouthRect)))
                 if len(mouthRect) == 0:
                     hasMask = True
                 else:

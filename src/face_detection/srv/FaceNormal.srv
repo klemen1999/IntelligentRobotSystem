@@ -1,6 +1,5 @@
 int8 markerID
 ---
 float32[] unitNormal
-bool hasMask
 bool viable
 bool warn

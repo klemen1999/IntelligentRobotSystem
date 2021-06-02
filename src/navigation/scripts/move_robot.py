@@ -30,7 +30,7 @@ from cylinder import Cylinder
 from cylinder_models import build_model_from_url
 from common_methods import color_name_from_rgba, ring_name_from_vaccine_name
 from qr_and_number_detection.msg import DigitsMessage, QrMessage
-from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse
+from face_detection.srv import FaceNormal, FaceNormalRequest, FaceNormalResponse, FaceMaskRequest, FaceMask, FaceMaskResponse
 from face_detection.msg import FacesList
 from ring_detection.srv import RingVector, RingVectorRequest
 from ring_detection.msg import RingsList
@@ -53,6 +53,8 @@ class move_controller():
         self.face_marker_sub = rospy.Subscriber('face_detection', FacesList, self.face_marker_received)
         rospy.wait_for_service("face_normal")
         self.face_normal_client = rospy.ServiceProxy("face_normal", FaceNormal)
+        rospy.wait_for_service("face_mask")
+        self.face_mask_client = rospy.ServiceProxy("face_mask", FaceMask)
         self.persons = {}  # key is id, value is Person()
         # Ring stuff
         self.ring_marker_sub = rospy.Subscriber("ring_detection", RingsList, self.ring_marker_received)
@@ -253,7 +255,6 @@ class move_controller():
             if self.persons[id].visited:
                 if not self.persons[id].vaccinated:
                     cylinder = self.cylinder_by_person(self.persons[id].cylinder)
-                    print(f"Cylinder: {cylinder}")
                     if cylinder and cylinder.visited:
                         print(f"Calculating the best vaccine for person")
                         self.get_person_vaccine(self.persons[id], cylinder)
@@ -266,7 +267,7 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
-            hasMask = response.hasMask
+            #hasMask = response.hasMask
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
@@ -284,7 +285,10 @@ class move_controller():
 
                 if warn:
                     self.speak("Please keep social distance")
-                if not hasMask:
+                mask_req = FaceMaskRequest()
+                mask_req.markerID = id
+                mask_response = self.face_mask_client(mask_req)
+                if not mask_response.hasMask:
                     self.speak("Please put on your mask")
 
                 # start dialogue with the face
@@ -309,7 +313,7 @@ class move_controller():
                 self.persons[id].visited = True
                 self.persons[id].approachPoint = pose
                 self.persons[id].vaccinatePoint = vaccinate_pose
-                self.persons[id].mask = response.hasMask
+                self.persons[id].mask = mask_response.hasMask
                 self.persons[id].age = self.current_person_age
 
                 if self.current_qr_data:
@@ -322,7 +326,7 @@ class move_controller():
 
                 print(self.persons[id])
                 cylinder = self.cylinder_by_person(self.persons[id].cylinder)
-                print(f"Cylinder: {cylinder}")
+                
                 if cylinder and cylinder.visited:
                     print(f"Calculating the best vaccine for person")
                     self.get_person_vaccine(self.persons[id], cylinder)
@@ -356,7 +360,6 @@ class move_controller():
 
     def digits_callback(self, msg):
         if (self.wait_for_digits):
-            print(f"Digits received: first --> {msg.first_digit} , second --> {msg.second_digit} ")
             self.current_person_age = msg.first_digit * 10 + msg.second_digit
             self.wait_for_digits = False
 
@@ -376,11 +379,14 @@ class move_controller():
 
     def move_to_ring(self, color, person):
         keysList = list(self.rings)
+        haveMatch = False
         for id in keysList:
             if self.rings[id].color == color:
                 if self.approach_ring(id, self.rings[id]):
+                    haveMatch = True
                     self.vaccinate(person)
-        print("Ring with color:", color, "not detected yet.")
+        if not haveMatch:
+            print("Ring with color:", color, "not detected yet.")
 
     def approach_ring(self, id, ring):
         request = RingVectorRequest()
@@ -388,7 +394,7 @@ class move_controller():
         response = self.ring_vector_client(request)
         # don't approach markers with not enough occurances
         if not response.viable:
-            print("Ring doesn't have enought occurances")
+            #print("Ring doesn't have enought occurances")
             return False
         ring.color = response.color
         vector = [response.unitVector[0], response.unitVector[1]]
@@ -438,11 +444,10 @@ class move_controller():
             if self.cylinders[id].visited:
                 person = self.person_by_cylinder(self.cylinders[id].color)
                 if person and not person.vaccinated:
-                    print(f"cylinder id: {id}, person: {person}")
                     self.get_person_vaccine(person, self.cylinders[id])
                     self.move_to_ring(person.ring, person)
                 continue
-            print(f"po continue {id}")
+            
             # calculating pose for approach
             request = CylinderStatusRequest()
             request.markerID = id
@@ -474,7 +479,7 @@ class move_controller():
             self.speak(f"Hello {color} cylinder")
             marker_relative_to_me = self.marker_relative_to_robot(pose)
             where_am_i_rotated = self.where_am_i_rotated()
-            print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
+            #print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
 
             timeout = time.time() + 2
             while self.wait_for_qr and time.time() < timeout:
@@ -615,7 +620,7 @@ class move_controller():
         return marker
 
     def move_left(self, distance, marker):
-        print(f"Moving {distance}m to the left")
+        #print(f"Moving {distance}m to the left")
         current_pose = self.current_position
         current_position = self.current_position.position
         current_rotation = self.current_rotation
@@ -638,20 +643,20 @@ class move_controller():
             new_pose.position.x = current_position.x + distance
             new_pose.position.y = current_position.y
 
-        print(f"Current XY is x : {current_position.x} , y : {current_position.y}")
-        print(f"New XY is x : {new_pose.position.x} , y : {new_pose.position.y}")
+        #print(f"Current XY is x : {current_position.x} , y : {current_position.y}")
+        #print(f"New XY is x : {new_pose.position.x} , y : {new_pose.position.y}")
         self.move(new_pose)
 
     def move_around_cylinder(self, cylinder_position):
-        print(f"Current rotation: {self.current_rotation} \n "
-              f"my_position: {self.current_position} \n "
-              f"Marker position: {cylinder_position}")
+        #print(f"Current rotation: {self.current_rotation} \n "
+        #      f"my_position: {self.current_position} \n "
+        #      f"Marker position: {cylinder_position}")
 
         marker_relative_to_me = self.marker_relative_to_robot(cylinder_position)
         where_am_i_rotated = self.where_am_i_rotated()
-        print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
+        #print(f"Marker relative: {marker_relative_to_me} \n my_relative_rotation {where_am_i_rotated}")
         new_point = self.calculate_new_point(cylinder_position.position, marker_relative_to_me, where_am_i_rotated, 0.6)
-        print(f"New point\n{new_point}")
+        #print(f"New point\n{new_point}")
         self.move(new_point)
 
     def marker_relative_to_robot(self, marker_position):
