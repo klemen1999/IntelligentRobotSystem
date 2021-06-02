@@ -73,9 +73,12 @@ class marker_organizer():
                 if ring.position.y - self.distThresh <= poseMiddle.position.y \
                         <= ring.position.y + self.distThresh:
                     numMatches += 1
-
+                # check for normal matching
+                if np.dot(vector, newUnitVec) > 0.5 or np.dot(vector, newUnitVec) < -0.5:
+                    numMatches += 1
+                
                 # we have new detection of known ring
-                if numMatches == 2:
+                if numMatches == 3:
                     ring.position.x = (ring.position.x * occurances
                                        + poseMiddle.position.x) / (occurances + 1)
                     ring.position.y = (ring.position.y * occurances
