@@ -131,8 +131,8 @@ class DigitExtractor:
                 config = '--psm 13 outputbase nobatch digits'
                 
                 # Visualize the image we are passing to Tesseract
-                cv2.imshow('Warped image',img_out)
-                cv2.waitKey(1)
+                #cv2.imshow('Warped image',img_out)
+                #cv2.waitKey(1)
             
                 # Extract text from image
                 text = pytesseract.image_to_string(img_out, config = config)
@@ -339,8 +339,8 @@ class DigitExtractor:
                 config = '--psm 13 outputbase nobatch digits'
                 
                 # Visualize the image we are passing to Tesseract
-                cv2.imshow('Warped image',img_out)
-                cv2.waitKey(1)
+                #cv2.imshow('Warped image',img_out)
+                #cv2.waitKey(1)
             
                 # Extract text from image
                 text = pytesseract.image_to_string(img_out, config = config)

@@ -129,11 +129,11 @@ class move_controller():
         self.current_rotation = yaw
 
     def main_loop(self):
-        for point in self.points:
+        for i, point in enumerate(self.points):         
             pose, rotDeg, clockwise = point
             if not self.check_if_reachable(pose):
                 continue
-            if self.point_already_visited(pose):
+            if self.point_already_visited(pose) and not i == 2:
                 continue
             print("---\nMoving to next map goal")
             marker = self.make_marker(pose)
@@ -151,11 +151,11 @@ class move_controller():
                 print("Checking for cylinders to approach")
                 self.check_cylinder_approach()
 
-            visitedFaces = 0
+            vaccinatedFaces = 0
             for id in self.persons:
-                if self.persons[id].visited:
-                    visitedFaces += 1
-            if visitedFaces < 4:
+                if self.persons[id].vaccinated:
+                    vaccinatedFaces += 1
+            if vaccinatedFaces < 4:
                 # check for new face to approach
                 print("Checking for faces to approach")
                 self.check_face_approach()
@@ -176,6 +176,7 @@ class move_controller():
                 return True
         return False
 
+    
     def euclid_distance(self, point1, point2):
         return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
 

@@ -166,7 +166,11 @@ class AutoNav:
                 pose = self.look_at(points[i], points[0])
             else:
                 pose = self.look_at(points[i], points[i+1])
+            if i == 5:
+                pose.position.x += 0.3
+                #pose.position.y -= 0.3
             poses.append((pose, 300, 1))
+        
         return poses
 
 

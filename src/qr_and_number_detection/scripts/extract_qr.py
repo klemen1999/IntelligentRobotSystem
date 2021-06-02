@@ -83,8 +83,8 @@ class QRExtractor:
             for j in range(0,n):
                 cv2.line(cv_image, hull[j], hull[ (j+1) % n], (0,255,0), 2)
                 
-            cv2.imshow('Warped image',cv_image)
-            cv2.waitKey(1)
+            #cv2.imshow('Warped image',cv_image)
+            #cv2.waitKey(1)
                 
         elif len(decodedObjects)==0:
             rospy.loginfo("No QR code in the image")

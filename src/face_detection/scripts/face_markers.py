@@ -13,11 +13,11 @@ import math
 
 
 class Face():
-    def __init__(self, poseMiddle, normal, markerID, hasMask):
+    def __init__(self, poseMiddle, normal, markerID, hasMask, maskWeight):
         self.pose = poseMiddle
         self.normal = normal
         self.occurances = 1
-        self.maskArray = np.array([1,0]) if hasMask else np.array([0,1])
+        self.maskArray = np.array([1*maskWeight,0]) if hasMask else np.array([0,1*maskWeight])
         self.markerID = markerID
 
 
@@ -32,6 +32,7 @@ class marker_organizer():
         self.calibration_sub = rospy.Subscriber("calibration_status", CalibrationMsg, self.calibration_callback)
         self.normal_srv = rospy.Service("face_normal", FaceNormal, self.get_normal)
         self.mask_srv = rospy.Service("face_mask", FaceMask, self.get_mask)
+        self.odom_sub = rospy.Subscriber("/odom", Odometry, self.get_odometry)
         self.buffer = []  # buffer to catch poses from face_pose topic
         self.faces = []
         self.marker_array = MarkerArray()
@@ -40,6 +41,8 @@ class marker_organizer():
         self.distThresh = distThresh
         self.start = True  # TODO: CHANGE TO FALSE
 
+    def get_odometry(self, msg):
+        self.current_position = msg.pose.pose
 
     def calibration_callback(self, msg):
         if msg.calibrationFinished:
@@ -65,7 +68,7 @@ class marker_organizer():
                                      poseRight.position.y - poseLeft.position.y])
             newNormal = np.array([vecLeftRight[1], -vecLeftRight[0]])
             newUnitNormal = newNormal / np.linalg.norm(newNormal)
-
+            maskWeight = self.calc_mask_weight(poseMiddle, self.current_position) 
             gotMatch = False
             faceMatched = None
             distanceMatched = 10000000
@@ -124,11 +127,12 @@ class marker_organizer():
                 faceMatched.normal = (faceMatched.normal * faceMatched.occurances + newUnitNormal) / \
                                       (faceMatched.occurances + 1)
                 faceMatched.occurances += 1
-                        
+
+                   
                 if hasMask:
-                    faceMatched.maskArray[0] += 1
+                    faceMatched.maskArray[0] += maskWeight
                 else:
-                    faceMatched.maskArray[1] += 1
+                    faceMatched.maskArray[1] += maskWeight
 
             elif noMatch == len(self.faces):  # definetly new face
                 print("Possible new face")
@@ -136,7 +140,7 @@ class marker_organizer():
                 status_message.status = "NEW_FACE"
                 newId = self.markerID
                 self.img_status_pub.publish(status_message)
-                self.faces.append(Face(poseMiddle, newUnitNormal, newId, hasMask))
+                self.faces.append(Face(poseMiddle, newUnitNormal, newId, hasMask, maskWeight))
                 self.markerID += 1
 
         self.buffer = []
@@ -201,7 +205,9 @@ class marker_organizer():
     def euclid_distance(self, point1, point2):
         return math.sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2)
 
-
+    def calc_mask_weight(self, start, end):
+        dist = math.sqrt((start.position.x-end.position.x)**2+(start.position.y-end.position.y)**2)
+        return 1/dist
 
 def main():
     marker_org = marker_organizer(5, 0.5)
