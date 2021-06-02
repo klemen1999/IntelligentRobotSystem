@@ -131,8 +131,8 @@ class move_controller():
             pose, rotDeg, clockwise = point
             if not self.check_if_reachable(pose):
                 continue
-            #if self.point_already_visited(pose):
-            #    continue
+            if self.point_already_visited(pose):
+                continue
             print("---\nMoving to next map goal")
             marker = self.make_marker(pose)
             self.goal_publisher.publish(marker)
@@ -266,11 +266,13 @@ class move_controller():
             # don't approach markers with not enough occurances
             if not response.viable:
                 continue
-            warnMask = response.hasMask
+            hasMask = response.hasMask
             warn = response.warn
             normalVec = [response.unitNormal[0], response.unitNormal[1]]
             # calculate pose for approach
             pose = self.approach_transform(self.persons[id].pose, normalVec, self.distance_to_face)
+            vaccinate_pose = self.approach_transform(self.persons[id].pose, normalVec, self.distance_to_face - 0.15)
+
             if self.check_if_reachable(pose):
                 # adding marker to see next approach
                 markerToFace = self.make_marker(pose)
@@ -281,11 +283,10 @@ class move_controller():
                 self.wait_for_qr = True
 
                 if warn:
-                    #print("Please keep social distance")
                     self.speak("Please keep social distance")
-                if warnMask:
-                    #print("Please put on your mask")
+                if not hasMask:
                     self.speak("Please put on your mask")
+
                 # start dialogue with the face
                 try:
                     anwsers = self.face_dialogue(self.persons[id])
@@ -301,22 +302,13 @@ class move_controller():
                 rotated_for_digits = False
                 # Go left to face the digits
                 if self.wait_for_digits:
-                    print("Moving left to get the digits")
-                    self.move_left(0.1, self.persons[id].pose)
-
-
-
-                # # Rotate towards qr code
-                # if (self.wait_for_qr):
-                #     print("Rotating towards qr code")
-                #     if (rotated_for_digits):
-                #         self.rotate(10, 40, True)
-                #     else:
-                #         self.rotate(10, 20, True)
+                    print("Rotating left")
+                    self.rotate(10, 20, False)
 
                 # store information about current person
                 self.persons[id].visited = True
                 self.persons[id].approachPoint = pose
+                self.persons[id].vaccinatePoint = vaccinate_pose
                 self.persons[id].mask = response.hasMask
                 self.persons[id].age = self.current_person_age
                 print(self.persons[id])
@@ -338,7 +330,7 @@ class move_controller():
 
     def vaccinate(self, person):
         print("I'm going to vaccinate you now")
-        markerToFace = self.make_marker(person.approachPoint)
+        markerToFace = self.make_marker(person.vaccinatePoint)
         self.goal_publisher.publish(markerToFace)
         print("Moving to approach the face")
         self.move(person.approachPoint)
@@ -407,6 +399,7 @@ class move_controller():
         self.close_approach(distance, True)
         print("Now under the ring")
         self.move_arm("ring")
+        self.move_arm("retract")
         self.close_approach(distance, False)
         return True
 

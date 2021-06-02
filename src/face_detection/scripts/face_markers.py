@@ -91,6 +91,8 @@ class marker_organizer():
                         else:
                             face.maskArray[1] += 1
 
+                        break
+
                 else:  # didn't match on all -> could be new face
                     noMatch += 1
 

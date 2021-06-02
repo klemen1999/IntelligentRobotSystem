@@ -147,7 +147,7 @@ class marker_organizer():
 
 
 def main():
-    marker_org = marker_organizer(1, 0.5)
+    marker_org = marker_organizer(1, 0.4)
     rate = rospy.Rate(10)
     while not rospy.is_shutdown():
         marker_org.check_rings()

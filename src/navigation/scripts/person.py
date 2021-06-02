@@ -9,6 +9,7 @@ class Person:
         self.training = training
         self.visited = visited
         self.approachPoint = point
+        self.vaccinatePoint = None
         self.vaccinated = vaccinated
 
     def __str__(self):

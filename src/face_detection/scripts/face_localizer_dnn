@@ -190,11 +190,13 @@ class face_localizer_dnn:
                 halfImage = face_region[halfSize:, :]
                 grayImage = cv2.cvtColor(halfImage, cv2.COLOR_RGB2GRAY)
                 hist = exposure.histogram(grayImage)
-                hist[0][0] = hist[0][-1] = 0
+                # hist[0][0] = hist[0][-1] = 0
                 top2 = np.argsort(hist[0])[-2:]
                 topReversed = top2[::-1] #reverse array so top color is at top2[0]
 
-                if hist[0][topReversed[0]] / hist[0][topReversed[1]] > 5:
+                #print(f"Srklj razmerje {hist[0][topReversed[0]] / hist[0][topReversed[1]]}")
+
+                if hist[0][topReversed[0]] / hist[0][topReversed[1]] > 2.5:
                     hasMask = True
                 else:
                     hasMask = False
@@ -267,7 +269,7 @@ class face_localizer_dnn:
 def main():
     face_finder = face_localizer_dnn()
 
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(7)
     while not rospy.is_shutdown():
         face_finder.find_faces()
         rate.sleep()

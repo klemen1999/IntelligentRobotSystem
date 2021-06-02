@@ -3,5 +3,4 @@
     <include file="$(find setup)/launch/amcl_simulation.launch"/>
     <include file="$(find turtlebot_rviz_launchers)/launch/view_navigation.launch" />
     <include file="$(find sound)/launch/robot_sound.launch" />
-    <include file="$(find face_detection)/launch/face_detection_dnn.launch" />
 </launch>
