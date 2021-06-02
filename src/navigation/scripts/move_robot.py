@@ -471,9 +471,9 @@ class move_controller():
                 print("Waiting for qr code")
                 rospy.sleep(0.25)
 
-            if self.wait_for_qr:
-                print("Didn't find qr code on cylinder, trying to move around it")
-                self.move_around_cylinder(self.cylinders[id].pose)
+            # if self.wait_for_qr:
+            #     print("Didn't find qr code on cylinder, trying to move around it")
+            #     self.move_around_cylinder(self.cylinders[id].pose)
 
             model = None
 
@@ -717,6 +717,7 @@ class move_controller():
         alreadyVaccinated = self.recognize_speech()
         if alreadyVaccinated == "yes":
             person.vaccinated = True
+            self.finished += 1
             return False
         else:
             person.vaccinated = False
