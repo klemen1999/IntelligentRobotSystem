@@ -311,6 +311,15 @@ class move_controller():
                 self.persons[id].vaccinatePoint = vaccinate_pose
                 self.persons[id].mask = response.hasMask
                 self.persons[id].age = self.current_person_age
+
+                if self.current_qr_data:
+                    data = self.current_qr_data.split(',')
+                    if len(data) == 6:
+                        qr_age = data[1]
+                        if int(self.persons[id].age) != int(qr_age):
+                            print("Getting age from qr data")
+                        self.persons[id].age = int(qr_age)
+
                 print(self.persons[id])
                 cylinder = self.cylinder_by_person(self.persons[id].cylinder)
                 print(f"Cylinder: {cylinder}")
@@ -322,6 +331,7 @@ class move_controller():
 
                 self.wait_for_qr = False
                 self.wait_for_digits = False
+                self.current_qr_data = ''
             else:
                 print("Can't reach the face")
 
@@ -336,7 +346,7 @@ class move_controller():
         markerToFace = self.make_marker(person.vaccinatePoint)
         self.goal_publisher.publish(markerToFace)
         print("Moving to approach the face")
-        self.move(person.approachPoint)
+        self.move(person.vaccinatePoint)
         self.move_arm("extend")
         self.speak("You are vaccinated now!")
         self.move_arm("retract")
@@ -352,7 +362,7 @@ class move_controller():
 
     def qr_callback(self, msg):
         if (self.wait_for_qr):
-            print(f"Qr data received: {msg.qr_data}")
+            # print(f"Qr data received: {msg.qr_data}")
             self.current_qr_data = msg.qr_data
             self.wait_for_qr = False
 
@@ -478,7 +488,7 @@ class move_controller():
             model = None
 
             if not self.wait_for_qr and self.current_qr_data != '':
-                print("Building a model")
+                print(f"Building a model with url: {self.current_qr_data}")
                 model = build_model_from_url(self.current_qr_data)
                 self.cylinders[id].model = model
                 print("Finished model")
@@ -788,7 +798,7 @@ class move_controller():
             print('Adjusting mic for ambient noise...')
             self.sr.adjust_for_ambient_noise(source)
             print('SPEAK NOW!')
-            audio = self.sr.listen(source, phrase_time_limit=10)
+            audio = self.sr.listen(source, phrase_time_limit=5)
 
         print('I am now processing the sounds you made.')
         recognized_text = ''
