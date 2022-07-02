@@ -1,5 +1,7 @@
 # TeamEpsilon
 
+Authors: [Klemen Škrlj](https://github.com/klemen1999), [Aljoša Koren](https://github.com/aljkor), [Andrija Kuzmanov](https://github.com/super-nexus)
+
 ### Goal: 
 Develop an intelligent robot system for Roomba using ROS
 
@@ -23,6 +25,8 @@ Advanced perception and cognitive capabilities:
  - Speech synthesis, speech recognition, dialogue processing (reading QR codes)
  - Belief maintenance, reasoning, planning
 
+### Special acknowledgment
+This project was choosen as the best overall
 
 ## How to run:
 ```
